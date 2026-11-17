@@ -41,6 +41,7 @@ FC.Player = class {
     scene.add(this.model.group);
     this.vm = FC.Models.viewmodels(0xc89a74, colors.shirt);
     this.vmRoot = new THREE.Group();
+    this.vmRoot.scale.setScalar(0.72);
     this.cam.add(this.vmRoot);
     this.vm.list.forEach((g) => this.vmRoot.add(g));
     this.vmRoot.add(this.vm.flash);
@@ -294,7 +295,7 @@ FC.Player = class {
     const swayX = Math.cos(this.walkPhase * 0.5) * bobA * 0.5, swayY = Math.abs(Math.sin(this.walkPhase)) * bobA * 0.4;
     const lower = (this.sprint ? 0.12 : 0) + (this.swimming ? 0.35 : 0) + (this.reloadT > 0 ? 0.12 : 0) + this.switchT * 0.5 + (this.healT > 0 ? 0.3 : 0);
     const g = this.vm.list[this.weapon];
-    g.position.set(FC.lerp(0.2, 0, a) + swayX, FC.lerp(-0.2, -0.115, a) - swayY - lower, FC.lerp(-0.42, -0.32, a) + this.kick * 0.05);
+    g.position.set(FC.lerp(0.24, 0, a) + swayX, FC.lerp(-0.24, -0.118, a) - swayY - lower, FC.lerp(-0.4, -0.3, a) + this.kick * 0.05);
     g.rotation.set(this.kick * 0.08 + (this.reloadT > 0 ? 0.5 : 0), this.sprint ? 0.5 : 0, this.reloadT > 0 ? 0.4 : 0);
     const m = this.vm.muzzles[this.weapon];
     if (m) { m.getWorldPosition(this.vm.flash.position); this.vmRoot.worldToLocal(this.vm.flash.position); }

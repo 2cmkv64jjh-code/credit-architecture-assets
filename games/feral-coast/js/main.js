@@ -558,8 +558,8 @@
       G.players.push(p);
     });
     G.stats.start = G.time;
-    G.announce('Isla Brava is held by the Ashen Tide. Liberate all 5 outposts.', '#ffd9a0', 7);
-    G.players.forEach((p) => p.msg(`Tag enemies [${p.ctrl.labels.tag}], cut alarms, take them down quietly [${p.ctrl.labels.interact}].`, '#ddd', 9));
+    G.announce('Liberate the 5 outposts held by the Ashen Tide', '#ffd9a0', 7);
+    G.players.forEach((p) => p.msg(`Tag [${p.ctrl.labels.tag}] · Takedown [${p.ctrl.labels.interact}] · Cut the alarm`, '#ddd', 9));
     if (G.players.some((p) => p.ctrl.usesMouse)) FC.Input.lock();
   }
   function setPaused(on) {

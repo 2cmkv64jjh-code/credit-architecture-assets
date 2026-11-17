@@ -30,6 +30,12 @@ FC.HUD = (function () {
     ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = 1.5; ctx.stroke();
   }
 
+  function nearestHeld(p) {
+    let near = null, nd = 1e9;
+    for (const op of FC.World.outposts) if (!op.liberated) { const d = Math.hypot(op.x - p.pos.x, op.z - p.pos.z); if (d < nd) { nd = d; near = op; } }
+    return near;
+  }
+
   function draw(G, p, rect) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.save();
@@ -41,6 +47,7 @@ FC.HUD = (function () {
     for (const op of FC.World.outposts) {
       const d = Math.hypot(op.x - p.pos.x, op.z - p.pos.z);
       if (d < op.r * 0.8) continue;
+      if (d > 260 && op !== nearestHeld(p)) continue;
       const sp = project(p, v3.set(op.x, op.y + 12, op.z).clone(), rect);
       if (!sp) continue;
       const col = op.liberated ? '#3fd0c9' : '#ff5a4f';
@@ -172,7 +179,7 @@ FC.HUD = (function () {
     }
     p.messages.forEach((m, i) => {
       ctx.globalAlpha = Math.min(1, m.t);
-      text(m.text, cx, rect.y + 80 * s + i * 20 * s, 14 * s, m.color, 'center');
+      text(m.text, cx, rect.y + Math.max(165 * s, rect.h * 0.24) + i * 20 * s, 14 * s, m.color, 'center');
       ctx.globalAlpha = 1;
     });
     G.subtitles.forEach((sub, i) => {
