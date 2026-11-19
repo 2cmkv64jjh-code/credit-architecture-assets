@@ -14,7 +14,7 @@
   .overlay { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
     padding: 24px 16px; overflow-y: auto; }
   .hidden { display: none !important; }
-  #title { background: linear-gradient(180deg, rgba(10,14,16,0.15), rgba(10,14,16,0.85) 70%); cursor: pointer; }
+  #title { background: linear-gradient(180deg, rgba(10,14,16,0.05), rgba(10,14,16,0.82) 72%); cursor: pointer; }
   h1 { font-size: clamp(48px, 9vw, 112px); margin: 0; letter-spacing: 0.06em; line-height: 0.95;
     background: linear-gradient(180deg, #fff3d6, #ff9f43 60%, #d9481f); -webkit-background-clip: text; background-clip: text; color: transparent;
     text-shadow: 0 6px 30px rgba(255,120,40,0.25); font-style: italic; }
@@ -27,9 +27,15 @@
   #slot0.joined { border-color: var(--teal); } #slot0.joined h2 { color: var(--teal); }
   #slot1.joined { border-color: var(--ember); } #slot1.joined h2 { color: var(--ember); }
   button { font: inherit; cursor: pointer; border: 0; border-radius: 10px; }
-  #deploy { margin-top: 22px; padding: 14px 34px; font-size: 20px; font-weight: 800; letter-spacing: 0.1em; color: #1b0f05;
+  .primary { padding: 14px 30px; font-size: 19px; font-weight: 800; letter-spacing: 0.1em; color: #1b0f05;
     background: linear-gradient(180deg, #ffc46b, #ff8a2a); box-shadow: 0 6px 24px rgba(255,138,42,0.35); }
-  #deploy:hover { filter: brightness(1.08); }
+  .primary:hover { filter: brightness(1.08); }
+  .row.big { margin-top: 22px; gap: 14px; }
+  .menu { display: flex; flex-direction: column; align-items: center; }
+  #loading { width: min(420px, 80vw); text-align: center; color: #ddd; }
+  .lb { height: 8px; background: rgba(255,255,255,0.15); border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
+  #loadbar { height: 100%; width: 0; background: linear-gradient(90deg, #ffc46b, #ff8a2a); transition: width 0.3s; }
+  select { font: inherit; background: #222; color: #ddd; border: 1px solid #444; border-radius: 6px; padding: 4px 8px; }
   .row { display: flex; gap: 10px; align-items: center; margin-top: 12px; font-size: 13px; color: #bbb; flex-wrap: wrap; justify-content: center; }
   .row button { padding: 6px 12px; background: rgba(255,255,255,0.12); color: #ddd; }
   .row button.on { background: var(--teal); color: #062; }
@@ -56,16 +62,19 @@
 <div id="title" class="overlay">
   <h1>FERAL COAST</h1>
   <div class="tag">Two rebels. One island. Burn the Ashen Tide off Isla Brava — one outpost at a time.</div>
+  <div id="loading"><div class="lb"><div id="loadbar"></div></div><div id="loadtxt">Loading…</div></div>
+  <div id="menu" class="hidden menu">
   <div class="slots">
     <div class="slot" id="slot0"><h2>PLAYER 1 · ROOK</h2><div class="dev"></div></div>
     <div class="slot" id="slot1"><h2>PLAYER 2 · WREN</h2><div class="dev"></div></div>
   </div>
-  <button id="deploy">DEPLOY</button>
+  <div class="row big"><button id="continue" class="primary hidden">CONTINUE</button><button id="newgame" class="primary">NEW GAME</button></div>
   <div class="row">
     Split screen:
     <span class="split-toggle"><button data-split="vertical" class="on">Side by side</button>
     <button data-split="horizontal">Top / bottom</button></span>
     <button id="resetSlots">Reset players</button>
+    Graphics: <select id="quality"><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select>
   </div>
   <div class="controls">
     <div><h3>Keyboard + Mouse</h3>
@@ -74,23 +83,24 @@
       <p><kbd>Shift</kbd> sprint · <kbd>C</kbd> crouch · <kbd>Space</kbd> jump</p>
       <p><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd>/<kbd>Wheel</kbd> weapons · <kbd>R</kbd> reload</p>
       <p><kbd>E</kbd> takedown / revive / use · <kbd>Q</kbd> tag</p>
-      <p><kbd>F</kbd> medkit · <kbd>Esc</kbd> pause</p></div>
+      <p><kbd>F</kbd> medkit · <kbd>M</kbd> map/skills · <kbd>Esc</kbd> pause</p></div>
     <div><h3>Keyboard (right side, P2)</h3>
       <p><kbd>IJKL</kbd> move · <kbd>Arrows</kbd> look</p>
       <p><kbd>Enter</kbd> fire · <kbd>R-Shift</kbd> aim</p>
       <p><kbd>M</kbd> sprint · <kbd>N</kbd> crouch · <kbd>H</kbd> jump</p>
       <p><kbd>P</kbd> next weapon · <kbd>O</kbd> reload</p>
       <p><kbd>U</kbd> takedown / revive / use · <kbd>Y</kbd> tag</p>
-      <p><kbd>9</kbd> medkit · <kbd>Backspace</kbd> pause</p></div>
+      <p><kbd>9</kbd> medkit · <kbd>.</kbd> map · <kbd>Backspace</kbd> pause</p></div>
     <div><h3>Gamepad</h3>
       <p><kbd>L-Stick</kbd> move · <kbd>R-Stick</kbd> look</p>
       <p><kbd>RT</kbd> fire · <kbd>LT</kbd> aim</p>
       <p><kbd>L3</kbd> sprint · <kbd>B</kbd> crouch · <kbd>A</kbd> jump</p>
       <p><kbd>Y</kbd> next weapon · <kbd>X</kbd> reload</p>
       <p><kbd>RB</kbd> takedown / revive / use · <kbd>LB</kbd> tag</p>
-      <p><kbd>D-Up</kbd> medkit · <kbd>Start</kbd> pause</p></div>
+      <p><kbd>D-Up</kbd> medkit · <kbd>Back</kbd> map · <kbd>Start</kbd> pause</p></div>
   </div>
-  <div class="row">Press <kbd>Space</kbd> or <kbd>Start</kbd> to deploy.</div>
+  <div class="row">Press <kbd>Space</kbd> or <kbd>Start</kbd> to deploy · progress saves automatically in this browser.</div>
+  </div>
 </div>
 
 <div id="pause" class="overlay hidden">
@@ -99,27 +109,37 @@
     <p>Stealth tip: crouch in bushes to stay hidden, tag guards, and cut the yellow alarm box before going loud.</p>
     <button id="resume">Resume</button>
     <button id="splitBtn" class="alt">Split: vertical</button>
+    <div class="row">Graphics: <select id="qualityP"><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div>
+    <button id="saveQuit" class="alt">Save &amp; quit to title</button>
   </div>
 </div>
 
 <div id="victory" class="overlay hidden">
   <div class="panel">
     <h2>Isla Brava is free</h2>
+    <p>Keep exploring — hunt, find the remaining Tide Ledgers and finish the convoys.</p>
     <p>The Ashen Tide is broken. Time: <b id="vtime"></b></p>
     <div id="vstats"></div>
-    <button id="again">Play again</button>
+    <button id="again">Keep playing</button>
   </div>
 </div>
 
-<script src="vendor/three.min.js"></script>
+<script src="vendor/three.bundle.js"></script>
+<script src="assets/assets.js"></script>
 <script src="js/util.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/input.js"></script>
+<script src="js/assets.js"></script>
 <script src="js/world.js"></script>
-<script src="js/models.js"></script>
+<script src="js/env.js"></script>
+<script src="js/foliage.js"></script>
 <script src="js/fx.js"></script>
+<script src="js/render.js"></script>
+<script src="js/progression.js"></script>
+<script src="js/missions.js"></script>
 <script src="js/player.js"></script>
 <script src="js/enemies.js"></script>
+<script src="js/vehicles.js"></script>
 <script src="js/hud.js"></script>
 <script src="js/main.js"></script>
 </body>

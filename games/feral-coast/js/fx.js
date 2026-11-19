@@ -138,6 +138,13 @@ FC.FX = (function () {
       for (let i = 0; i < 25; i++) spawn(norm, { x: x + R(-1.5, 1.5), y: y + 1, z: z + R(-1.5, 1.5), vx: R(-2, 2), vy: R(2, 5), vz: R(-2, 2), drag: 0.6, life: R(2.5, 4.5), s0: 2, s1: 7, c0: [0.15, 0.13, 0.12], c1: [0.45, 0.43, 0.4], a0: 0.6, a1: 0 });
       for (let i = 0; i < 20; i++) spawn(add, { x, y: y + 0.5, z, vx: R(-14, 14), vy: R(4, 14), vz: R(-14, 14), g: 18, life: R(0.5, 1.2), s0: 0.15, s1: 0.05, c0: [1, 0.9, 0.5], c1: [1, 0.3, 0] });
     },
+    splash(x, y, z) {
+      for (let i = 0; i < 14; i++) spawn(norm, { x, y, z, vx: R(-1.5, 1.5), vy: R(2, 5), vz: R(-1.5, 1.5), g: 12, life: R(0.4, 0.8), s0: 0.25, s1: 0.5, c0: [0.85, 0.92, 0.95], c1: [0.7, 0.85, 0.9], a0: 0.8, a1: 0 });
+    },
+    rain(cx, cy, cz, amount) {
+      const n = Math.floor(amount * 18);
+      for (let i = 0; i < n; i++) spawn(norm, { x: cx + R(-25, 25), y: cy + R(8, 18), z: cz + R(-25, 25), vy: -22, vx: -2, life: 0.8, s0: 0.06, s1: 0.06, c0: [0.75, 0.8, 0.88], a0: 0.45, a1: 0.35 });
+    },
     glow(x, y, z, size, c, life) {
       spawn(add, { x, y, z, life: life || 0.05, s0: size, s1: size, c0: c, a0: 0.9, a1: 0.6 });
     },

@@ -75,6 +75,10 @@ FC.Audio = (function () {
       if (kind === 'pistol') {
         burst({ type: 'bandpass', freq: 1400, freqEnd: 350, q: 1.4, dur: 0.1, vol: 0.45 * vol });
         tone({ type: 'triangle', freq: 220, freqEnd: 90, dur: 0.08, vol: 0.15 * vol });
+      } else if (kind === 'sniper') {
+        burst({ freq: 4500, freqEnd: 150, dur: 0.7, vol: 1.0 * vol });
+        burst({ freq: 140, dur: 0.35, vol: 0.9 * vol });
+        burst({ type: 'bandpass', freq: 700, freqEnd: 200, dur: 1.4, vol: 0.25 * vol, delay: 0.12 });
       } else if (kind === 'heavy') {
         burst({ freq: 2200, freqEnd: 200, dur: 0.4, vol: 0.9 * vol });
         burst({ freq: 160, dur: 0.25, vol: 0.9 * vol });
@@ -109,6 +113,27 @@ FC.Audio = (function () {
     liberate() {
       [392, 523, 659].forEach((f, i) => tone({ type: 'triangle', freq: f, dur: 0.4, vol: 0.16, delay: i * 0.12 }));
     },
+    growl(vol) { if (vol > 0.02) { tone({ type: 'sawtooth', freq: 110, freqEnd: 70, dur: 0.6, vol: 0.12 * vol }); burst({ freq: 300, dur: 0.6, vol: 0.2 * vol }); } },
+    horn() { tone({ type: 'square', freq: 392, dur: 0.35, vol: 0.12 }); tone({ type: 'square', freq: 494, dur: 0.35, vol: 0.1 }); },
+    crash(vol) { burst({ freq: 900, freqEnd: 120, dur: 0.5, vol: 0.8 * vol }); },
+    radio() { burst({ type: 'bandpass', freq: 2500, q: 3, dur: 0.12, vol: 0.12 }); tone({ type: 'square', freq: 1200, dur: 0.05, vol: 0.04 }); },
+    levelUp() { [523, 784, 1046, 1318].forEach((f, i) => tone({ type: 'triangle', freq: f, dur: 0.25, vol: 0.12, delay: i * 0.08 })); },
+    step(vol) { burst({ freq: 500, dur: 0.06, vol: 0.05 * vol }); },
+    // combat music: streamed mp3 (works from file:// and http)
+    music(intensity) {
+      if (!ctx) return;
+      if (!this._music) {
+        const a = new Audio('assets/audio/combat.mp3'); a.loop = true; a.volume = 0;
+        this._music = a; this._musicVol = 0;
+      }
+      const target = intensity * 0.32;
+      this._musicVol += (target - this._musicVol) * 0.02;
+      if (this._musicVol > 0.005 && this._music.paused) this._music.play().catch(() => {});
+      if (this._musicVol < 0.004 && !this._music.paused) this._music.pause();
+      this._music.volume = Math.max(0, Math.min(1, this._musicVol));
+    },
+    birds(vol) { if (vol > 0.02) { const f = 2400 + Math.random() * 1600; tone({ freq: f, freqEnd: f * 1.3, dur: 0.09, vol: 0.03 * vol }); tone({ freq: f * 1.1, freqEnd: f * 0.9, dur: 0.08, vol: 0.025 * vol, delay: 0.12 }); } },
+    crickets(vol) { if (vol > 0.02) for (let i = 0; i < 3; i++) tone({ type: 'square', freq: 4200, dur: 0.02, vol: 0.006 * vol, delay: i * 0.05 }); },
     siren(vol) {
       if (!ctx || vol < 0.01) return;
       const t = ctx.currentTime;

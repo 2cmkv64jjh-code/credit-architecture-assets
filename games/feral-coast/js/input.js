@@ -10,7 +10,7 @@ FC.Input = (function () {
   const padNow = {};
 
   const BLOCK = new Set(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter',
-    'Backspace', 'ShiftRight', 'ControlLeft', 'KeyQ', 'KeyF']);
+    'Backspace', 'ShiftRight', 'ControlLeft', 'KeyQ', 'KeyF', 'Period', 'KeyM']);
 
   function init(canvas) {
     canvasEl = canvas;
@@ -53,9 +53,9 @@ FC.Input = (function () {
   function endFrame() { mdx = 0; mdy = 0; wheel = 0; }
 
   const LABELS = {
-    kbm: { interact: 'E', tag: 'Q', heal: 'F', reload: 'R', fire: 'LMB', next: 'Wheel' },
-    kb2: { interact: 'U', tag: 'Y', heal: '9', reload: 'O', fire: 'Enter', next: 'P' },
-    pad: { interact: 'RB', tag: 'LB', heal: 'D-Up', reload: 'X', fire: 'RT', next: 'Y' },
+    kbm: { interact: 'E', tag: 'Q', heal: 'F', reload: 'R', fire: 'LMB', next: 'Wheel', map: 'M', back: 'Esc/M', confirm: 'LMB/Space', tab: 'Q' },
+    kb2: { interact: 'U', tag: 'Y', heal: '9', reload: 'O', fire: 'Enter', next: 'P', map: '.', back: 'Backspace', confirm: 'Enter', tab: 'Y' },
+    pad: { interact: 'RB', tag: 'LB', heal: 'D-Up', reload: 'X', fire: 'RT', next: 'Y', map: 'Back', back: 'B', confirm: 'A', tab: 'LB' },
   };
 
   class Controller {
@@ -77,7 +77,8 @@ FC.Input = (function () {
         s.fire = locked && mbtn.has(0); s.aim = locked && mbtn.has(2);
         s.reload = k('KeyR'); s.jump = k('Space'); s.crouch = k('KeyC') || k('ControlLeft');
         s.sprint = k('ShiftLeft'); s.interact = k('KeyE'); s.tag = k('KeyQ'); s.heal = k('KeyF');
-        s.slot0 = k('Digit1'); s.slot1 = k('Digit2'); s.slot2 = k('Digit3');
+        s.slot0 = k('Digit1'); s.slot1 = k('Digit2'); s.slot2 = k('Digit3'); s.slot3 = k('Digit4'); s.slot4 = k('Digit5'); s.slot5 = k('Digit6');
+        s.map = k('KeyM') || k('Tab'); s.back = k('Escape');
         s.wheelNext = wheel > 0; s.wheelPrev = wheel < 0;
         s.pause = false; // Escape is handled through pointer-lock loss
       } else if (this.device === 'kb2') {
@@ -87,7 +88,7 @@ FC.Input = (function () {
         s.ly = ((k('ArrowDown') ? 1 : 0) - (k('ArrowUp') ? 1 : 0)) * 1.7 * dt;
         s.fire = k('Enter') || k('NumpadEnter'); s.aim = k('ShiftRight');
         s.reload = k('KeyO'); s.jump = k('KeyH'); s.crouch = k('KeyN'); s.sprint = k('KeyM');
-        s.interact = k('KeyU'); s.tag = k('KeyY'); s.next = k('KeyP'); s.heal = k('Digit9');
+        s.interact = k('KeyU'); s.tag = k('KeyY'); s.next = k('KeyP'); s.heal = k('Digit9'); s.map = k('Period'); s.back = k('Backspace');
         s.pause = k('Backspace');
       } else {
         const gp = pads()[this.padIndex];
@@ -108,12 +109,12 @@ FC.Input = (function () {
           const b = (i) => !!(gp.buttons[i] && (gp.buttons[i].pressed || gp.buttons[i].value > 0.35));
           s.jump = b(0); s.crouch = b(1); s.reload = b(2); s.next = b(3); s.tag = b(4); s.interact = b(5);
           s.aim = b(6); s.fire = b(7); s.pause = b(9); s.sprint = b(10); s.heal = b(12);
-          s.prevW = b(14); s.nextD = b(15);
+          s.prevW = b(14); s.nextD = b(15); s.map = b(8); s.back = b(1); s.dDown = b(13);
         }
       }
       const edges = {};
       for (const n of ['fire', 'reload', 'jump', 'crouch', 'interact', 'tag', 'heal', 'pause', 'next',
-        'slot0', 'slot1', 'slot2', 'sprint', 'prevW', 'nextD']) {
+        'slot0', 'slot1', 'slot2', 'slot3', 'slot4', 'slot5', 'sprint', 'prevW', 'nextD', 'map', 'back', 'aim']) {
         edges[n] = !!s[n] && !this.prev[n];
       }
       edges.next = edges.next || !!s.wheelNext || edges.nextD;
