@@ -22,6 +22,12 @@ FC.SHOP = [
   { id: 'med', name: 'Medkit', price: 60, kind: 'med' },
   { id: 'companion', name: 'Wolf companion (Fang)', price: 350, kind: 'companion' },
   { id: 'knives', name: 'Throwing knives (silent, retrievable)', price: 200, kind: 'weapon' },
+  { id: 'craft_ammo', name: 'Craft: ammo pouch (+25% reserves)', price: 0, kind: 'craft', need: { deer: 2 }, needText: 'needs 2 deer pelts' },
+  { id: 'craft_bag', name: 'Craft: throwables bag (+1 molotov/grenade)', price: 0, kind: 'craft', need: { wolf: 2 }, needText: 'needs 2 wolf pelts' },
+  { id: 'craft_med', name: 'Craft: medic satchel (carry 7 medkits)', price: 0, kind: 'craft', need: { stag: 1, deer: 1 }, needText: 'needs 1 stag + 1 deer pelt' },
+  { id: 'camp_sentries', name: 'Camp: rebel sentries', price: 400, kind: 'camp' },
+  { id: 'camp_garage', name: 'Camp: garage (extra gyrocopter + quad)', price: 500, kind: 'camp' },
+  { id: 'camp_infirmary', name: 'Camp: infirmary (redeploy with 3 medkits)', price: 300, kind: 'camp' },
   { id: 'rifle_sup', name: 'Carbine suppressor', price: 400, kind: 'mod' },
   { id: 'rifle_sight', name: 'Carbine holo-sight (2.4x)', price: 300, kind: 'mod' },
   { id: 'rifle_mag', name: 'Carbine extended mag (45)', price: 250, kind: 'mod' },
@@ -50,8 +56,9 @@ FC.Progression = (function () {
     if (!p.has('pockets')) return;
     for (const k of ['pistol', 'rifle', 'shotgun', 'sniper']) FC.WEAPONS[k]['maxReserve_' + p.index] = Math.round(FC.WEAPONS[k].maxReserve * 1.5);
   }
-  function maxReserve(p, k) { const w = FC.WEAPONS[k]; return Math.round(w.maxReserve * (p.has('pockets') ? 1.5 : 1)); }
-  function maxThrow(p, k) { return FC.WEAPONS[k].maxCount + (p.has('pockets') ? 1 : 0); }
+  function maxReserve(p, k) { const w = FC.WEAPONS[k]; return Math.round(w.maxReserve * ((p.has('pockets') ? 1.5 : 1) + 0.25 * (p.prog.pouch || 0))); }
+  function maxThrow(p, k) { return FC.WEAPONS[k].maxCount + (p.has('pockets') ? 1 : 0) + (p.prog.bag || 0); }
+  function medCap(p) { return 5 + (p.prog.medcap ? 2 : 0); }
 
   // ---------------------------------------------------------------- save / load
   const KEY = 'feralcoast_save_v2';
@@ -72,7 +79,7 @@ FC.Progression = (function () {
   function load() { try { const s = localStorage.getItem(KEY); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
   function clear() { try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ } }
 
-  return { newProfile, needFor, xp, cash, save, load, clear, maxReserve, maxThrow, applyPockets };
+  return { newProfile, needFor, xp, cash, save, load, clear, maxReserve, maxThrow, applyPockets, medCap };
 })();
 
 // ---------------------------------------------------------------------------------------------- menus
@@ -120,7 +127,7 @@ FC.Menus = (function () {
 
   function buy(p, item, G) {
     if (item.kind === 'weapon' && p.owned.has(item.id) && item.id !== 'grenade') { p.msg('Already owned', '#aaa', 1.5); return; }
-    if (p.prog.cash < item.price) { p.msg('Not enough cash', '#ff8a80', 2); FC.Audio.click(); return; }
+    if (item.price && p.prog.cash < item.price) { p.msg('Not enough cash', '#ff8a80', 2); FC.Audio.click(); return; }
     FC.Progression.cash(p, -item.price, item.name, G);
     if (item.kind === 'weapon') {
       p.owned.add(item.id);
@@ -132,7 +139,21 @@ FC.Menus = (function () {
       for (const k of ['pistol', 'bow', 'rifle', 'shotgun', 'sniper']) p.ammo[k].reserve = FC.Progression.maxReserve(p, k);
     } else if (item.kind === 'throw') {
       for (const k of ['molotov', 'grenade']) if (p.owned.has(k)) p.ammo[k].mag = Math.min(FC.Progression.maxThrow(p, k), p.ammo[k].mag + 2);
-    } else if (item.kind === 'med') p.medkits = Math.min(5, p.medkits + 1);
+    } else if (item.kind === 'med') p.medkits = Math.min(FC.Progression.medCap(p), p.medkits + 1);
+    else if (item.kind === 'craft') {
+      const pel = p.prog.pelts || {};
+      for (const k in item.need) if ((pel[k] || 0) < item.need[k]) { p.msg(`Not enough pelts — ${item.needText}`, '#ff8a80', 2.5); return; }
+      for (const k in item.need) pel[k] -= item.need[k];
+      if (item.id === 'craft_ammo') p.prog.pouch = Math.min(2, (p.prog.pouch || 0) + 1);
+      if (item.id === 'craft_bag') p.prog.bag = Math.min(2, (p.prog.bag || 0) + 1);
+      if (item.id === 'craft_med') p.prog.medcap = true;
+      p.msg(`Crafted: ${item.name.replace('Craft: ', '')}`, '#ffd166', 2.5);
+    }
+    else if (item.kind === 'camp') {
+      if (G.flags[item.id]) { p.msg('Already built', '#aaa', 1.5); FC.Progression.cash(p, item.price, null, G); return; }
+      G.flags[item.id] = true; FC.Living.applyCamp(G, item.id);
+      G.announce(`${item.name} built`, '#3fd0c9', 3);
+    }
     else if (item.kind === 'mod') { p.prog.mods = p.prog.mods || []; if (p.prog.mods.includes(item.id)) { p.msg('Already fitted', '#aaa', 1.5); FC.Progression.cash(p, item.price, null, G); return; } p.prog.mods.push(item.id); p.msg(`Fitted: ${item.name}`, '#ffd166', 2); }
     else if (item.kind === 'companion') { if (p.companion) { p.msg('Already running with you', '#aaa', 1.5); FC.Progression.cash(p, item.price, null, G); return; } FC.Expansion.giveCompanion(p); }
     FC.Audio.pickup();

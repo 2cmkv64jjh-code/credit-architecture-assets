@@ -454,6 +454,7 @@ FC.Player = class {
       return;
     }
     if (FC.Expansion.interact(this, c, G)) return;
+    if (FC.Living.questInteract(this, c, G)) return;
     const e = G.takedownTarget(this);
     if (e) {
       this.prompt = this.dfa ? `[${L.interact}] Death from above` : `[${L.interact}] Takedown`;

@@ -38,12 +38,14 @@
     await step('Unpacking models…', () => FC.Assets.load((k) => { bar.style.width = Math.round(k * 55) + '%'; }));
     await step('Raising Isla Brava…', () => { FC.World.build(scene); bar.style.width = '75%'; });
     await step('Planting the jungle…', () => { FC.Env.init(scene, G.quality); FC.Foliage.build(scene); FC.FX.init(scene); FC.Features.init(scene); bar.style.width = '90%'; });
-    await step('Waking the island…', () => { populate(); FC.Expansion.init(scene, G); bar.style.width = '100%'; });
+    await step('Waking the island…', () => { populate(); FC.Expansion.init(scene, G); FC.Living.init(scene, G); bar.style.width = '100%'; });
     G.state = 'title';
     $('loading').classList.add('hidden');
     $('menu').classList.remove('hidden');
     const save = FC.Progression.load();
     $('continue').classList.toggle('hidden', !save);
+    let ngp = null; try { ngp = JSON.parse(localStorage.getItem('feralcoast_ngplus') || 'null'); } catch (e) { /* ignore */ }
+    $('ngplus').classList.toggle('hidden', !ngp);
     if (save) $('continue').textContent = `CONTINUE (${save.outposts.filter(Boolean).length}/10 outposts)`;
     refreshSlots();
   }
@@ -181,6 +183,8 @@
     for (const v of W.villages) out.push({ x: v.x, z: v.z, name: v.name, kind: 'village', fast: W.outposts[v.link].liberated });
     for (const t of W.towers) out.push({ x: t.x, z: t.z, name: t.name, kind: 'tower', hacked: t.hacked });
     for (const c of G.collectibles) if (!c.taken) out.push({ x: c.x, z: c.z, name: 'Tide Ledger', kind: 'ledger' });
+    for (const t of FC.Living.treasures) if (t.revealed && !t.taken) out.push({ x: t.x, z: t.z, name: 'Tide stash', kind: 'ledger', always: true });
+    for (const q of FC.Living.quests) if (q.state !== 'done') out.push({ x: q.giver.x, z: q.giver.z, name: `Quest: ${q.title}`, kind: 'village', fast: false });
     return out;
   };
   G.fastTravel = (poi) => {
@@ -376,6 +380,7 @@
     if (h < 0) return;
     G.fires.push({ x, y: h + 0.05, z, r, life, t: 0, spreadT: 1, owner });
   }
+  G.ignite = (x, z, r, life, owner) => igniteAt(x, z, r, life, owner);
   function explodeBarrel(b, owner) {
     if (b.exploded) return;
     b.exploded = true;
@@ -483,10 +488,12 @@
     }
     const c = dropPickup(e.pos, 'cash'); c.value = Math.round(FC.rand(e.def.cash[0], e.def.cash[1]));
     if (Math.random() < 0.6 || e.type !== 'grunt') dropPickup(e.pos, Math.random() < 0.2 ? 'med' : Math.random() < 0.25 ? 'molotov' : 'ammo');
+    if (e.bounty) { for (const q of G.players) FC.Progression.cash(q, 250, `Bounty: ${e.bounty}`, G); G.announce(`Bounty collected: ${e.bounty}`, '#ffd166', 4); }
     if (e === G.boss) { G.announce('Commander Vael is dead!', '#ffd166', 6); FC.Missions.say('Ama Reyes', 'Vael is down! Isla Brava breathes again.'); }
     checkLiberation();
   };
   G.onAnimalKilled = (a, p) => {
+    FC.Living.onAnimalKilled(a, p, G);
     FC.Progression.xp(p, 12, 'Hunt', G);
     const pk = dropPickup(a.pos, 'pelt'); pk.value = (a.kind === 'stag' ? 70 : a.kind === 'wolf' ? 45 : 35) * (p.has('hunter') ? 2 : 1);
   };
@@ -515,6 +522,7 @@
     FC.Progression.save(G);
   };
   G.takeCollectible = (c, p) => {
+    FC.Living.onLedger(G);
     c.taken = true; c.mesh.visible = false;
     const n = G.collectibles.filter((k) => k.taken).length;
     G.announce(`Tide Ledger ${n}/${G.collectibles.length} recovered`, '#ffd166', 3);
@@ -534,7 +542,7 @@
       G.announce(`OUTPOST LIBERATED: ${op.name}${stealth ? ' — undetected!' : ''}`, '#3fd0c9', 5);
       FC.Audio.liberate();
       for (const p of G.players) {
-        p.medkits = Math.min(5, p.medkits + 1);
+        p.medkits = Math.min(FC.Progression.medCap(p), p.medkits + 1);
         FC.Progression.xp(p, 250 + (stealth ? 150 : 0) + (op.alarmTriggered ? 0 : 50), stealth ? 'Undetected liberation' : 'Outpost liberated', G);
         FC.Progression.cash(p, op.boss ? 500 : 150, 'Outpost', G);
       }
@@ -554,6 +562,7 @@
     p.spawnAt(pts[0].x, pts[0].z);
     for (const k of ['pistol', 'bow', 'rifle', 'shotgun', 'sniper']) p.ammo[k].reserve = Math.max(p.ammo[k].reserve, Math.round(FC.WEAPONS[k].reserve * 0.5));
     p.msg('Redeployed', p.color);
+    if (G.flags.camp_infirmary) p.medkits = Math.max(p.medkits, 3);
     p.rig.play('Idle_Gun', { fade: 0.4 });
     for (const q of G.players) if (q !== p && q.state === 'dead') { q.spawnAt(pts[0].x + 2, pts[0].z); q.rig.play('Idle_Gun', { fade: 0.4 }); }
     for (const e of G.enemies) if (e.alive && e.alerted) e.detect = [0, 0];
@@ -656,6 +665,7 @@
     FC.Features.update(dt, G);
     FC.Expansion.update(dt, G);
     FC.Modes.update(dt, G);
+    FC.Living.update(dt, G);
     // rain around each camera
     // fog-of-war around players
     for (const p of G.players) G.revealAround(p.pos.x, p.pos.z, 90);
@@ -775,6 +785,7 @@
   $('title').addEventListener('mousedown', (e) => { if (e.target.closest('button') || e.target.closest('select') || e.target.closest('.setbox')) return; join('kbm'); });
   $('newgame').addEventListener('click', () => { if (!slots.length) join('kbm'); startGame(false); });
   $('continue').addEventListener('click', () => { if (!slots.length) join('kbm'); startGame(true); });
+  $('ngplus').addEventListener('click', () => { if (!slots.length) join('kbm'); startGame(false, true); });
   $('resetSlots').addEventListener('click', (e) => { e.stopPropagation(); slots.length = 0; refreshSlots(); });
   document.querySelectorAll('[data-split]').forEach((b) => b.addEventListener('click', (e) => {
     e.stopPropagation(); G.split = b.dataset.split;
@@ -803,7 +814,7 @@
   $('saveQuit').addEventListener('click', () => { FC.Progression.save(G); location.reload(); });
   $('again').addEventListener('click', () => { $('victory').classList.add('hidden'); G.state = 'playing'; });
 
-  function startGame(cont) {
+  function startGame(cont, ngPlus) {
     if (G.state !== 'title' || !slots.length) return;
     FC.Audio.init();
     const save = cont ? FC.Progression.load() : null;
@@ -820,6 +831,21 @@
     G.mode = mode;
     if (mode !== 'campaign') { FC.Env.hour = mode === 'survival' ? 17.5 : 10; FC.Modes.start(G, mode); }
     else if (save) applySave(save);
+    else if (ngPlus) {
+      let d = null; try { d = JSON.parse(localStorage.getItem('feralcoast_ngplus') || 'null'); } catch (e) { /* ignore */ }
+      G.players.forEach((p, i) => {
+        const prof = d && (d.players[i] || d.players[0]);
+        if (!prof) return;
+        p.prog = prof.prog; p.owned = new Set(prof.owned);
+        if (p.prog.companion) { p.prog.companion = false; FC.Expansion.giveCompanion(p); }
+      });
+      G.ngPlus = true; G.enemyDmgMul *= 1.3; G.detectMul *= 1.15;
+      for (const e of G.enemies) { e.hp *= 1.4; e.maxHp *= 1.4; }
+      FC.Env.hour = 7.2;
+      G.revealAround(FC.World.start.x, FC.World.start.z, 200);
+      FC.Missions.start(G, 1);
+      G.announce('NEW GAME+ — the Tide is back, tougher. You kept your gear and skills.', '#ffd166', 6);
+    }
     else {
       FC.Env.hour = 7.2;
       G.revealAround(FC.World.start.x, FC.World.start.z, 200);
@@ -873,6 +899,7 @@
       <p>Tags <b>${p.stats.tags}</b></p><p>Revives <b>${p.stats.revives}</b></p></div>`).join('');
     if (G.modeResult) { document.querySelector('#victory h2').textContent = G.modeResult; document.querySelector('#victory p').textContent = 'Press Space or click to return to the title.'; $('again').textContent = 'Back to title'; $('again').onclick = () => location.reload(); }
     $('victory').classList.remove('hidden');
+    if (!G.mode || G.mode === 'campaign') { try { localStorage.setItem('feralcoast_ngplus', JSON.stringify({ players: G.players.map((p) => ({ prog: p.prog, owned: Array.from(p.owned) })) })); } catch (e) { /* ignore */ } }
     FC.Progression.save(G);
   }
 

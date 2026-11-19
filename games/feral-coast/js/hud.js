@@ -91,6 +91,31 @@ FC.HUD = (function () {
       const sp = project(p, v3.set(cp.pos.x, cp.pos.y + 1.6, cp.pos.z).clone(), rect);
       if (sp) text(cp.alive ? cp.name : `${cp.name} (hurt)`, sp.x, sp.y, 10 * s, cp.alive ? '#d8c8a0' : '#ff8a80', 'center', 600);
     }
+    for (const e of G.enemies) {
+      if (!e.alive || !e.bounty || e.dormant || e.pos.distanceTo(p.pos) > 150) continue;
+      const sp = project(p, e.headPos.add(v3.set(0, 0.9, 0)), rect);
+      if (sp) text(`☠ ${e.bounty}`, sp.x, sp.y, 11 * s, '#ffd166', 'center');
+    }
+    for (const q of FC.Living.quests) {
+      const pts = [];
+      if (q.state === 'open' || q.state === 'ready') pts.push([q.giver, q.state === 'open' ? '! ' + q.title : '✓ hand in']);
+      if (q.state === 'active' && q.target) pts.push([q.target, q.kind === 'fetch' ? '✚ medicine' : '⚡ jammer']);
+      for (const [pt, label] of pts) {
+        if (Math.hypot(pt.x - p.pos.x, pt.z - p.pos.z) > 200) continue;
+        const sp = project(p, v3.set(pt.x, FC.World.heightAt(pt.x, pt.z) + 2.6, pt.z).clone(), rect);
+        if (sp) text(label, sp.x, sp.y, 11 * s, '#9be7e1', 'center');
+      }
+    }
+    for (const t of FC.Living.treasures) {
+      if (!t.revealed || t.taken || Math.hypot(t.x - p.pos.x, t.z - p.pos.z) > 250) continue;
+      const sp = project(p, v3.set(t.x, t.y + 2, t.z).clone(), rect);
+      if (sp) text('◆ stash', sp.x, sp.y, 11 * s, '#ffd166', 'center');
+    }
+    const ev = FC.Living.event;
+    if (ev && ev.kind !== 'ambush' && Math.hypot(ev.x - p.pos.x, ev.z - p.pos.z) < 400) {
+      const sp = project(p, v3.set(ev.x, FC.World.heightAt(ev.x, ev.z) + 3, ev.z).clone(), rect);
+      if (sp) text(ev.kind === 'execution' ? `⚠ execution ${Math.max(0, Math.ceil(ev.limit - ev.t))}s` : ev.kind === 'drop' ? '⬇ supply drop' : '$ paymaster', sp.x, sp.y, 11 * s, '#ff9f43', 'center');
+    }
     for (const pr of FC.Expansion.prisoners) {
       if (!pr.alive || !pr.captive || pr.pos.distanceTo(p.pos) > 80) continue;
       const sp = project(p, v3.set(pr.pos.x, pr.pos.y + 1.8, pr.pos.z).clone(), rect);
@@ -428,7 +453,7 @@ FC.HUD = (function () {
       name: k.name + (k.cost > 1 ? ` (${k.cost} pts)` : ''), desc: k.desc, state: p.has(k.id) ? 'LEARNED' : k.req && !p.has(k.req) ? 'LOCKED' : '', ok: !p.has(k.id),
     })), `[${L.confirm}] learn`);
     if (p.menu === 'shop') return drawList(p, rect, s, `TRADER   ·   CASH $${p.prog.cash}`, FC.SHOP.map((it) => ({
-      name: it.name, desc: `$${it.price}`, state: (it.kind === 'weapon' && it.id !== 'grenade' && p.owned.has(it.id)) || (it.kind === 'companion' && p.companion) || (it.kind === 'mod' && (p.prog.mods || []).includes(it.id)) ? 'OWNED' : '', ok: p.prog.cash >= it.price,
+      name: it.name, desc: it.kind === 'craft' ? `${it.needText} · you have ${Object.entries(p.prog.pelts || {}).map(([k, v]) => `${v} ${k}`).join(', ') || 'no pelts'}` : `$${it.price}`, state: (it.kind === 'weapon' && it.id !== 'grenade' && p.owned.has(it.id)) || (it.kind === 'companion' && p.companion) || (it.kind === 'mod' && (p.prog.mods || []).includes(it.id)) || (it.kind === 'camp' && G.flags[it.id]) ? 'OWNED' : '', ok: p.prog.cash >= it.price,
     })), `[${L.confirm}] buy · [${L.back}] leave`);
   }
   function drawList(p, rect, s, header, rows, hint) {
