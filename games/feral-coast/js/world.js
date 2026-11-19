@@ -281,10 +281,10 @@ FC.World = (function () {
   // round obstacles (trees, rocks)
   const GC = 12, cgrid = new Map();
   function gkey(i, j) { return i * 8192 + j; }
-  function addCircle(x, z, r) {
+  function addCircle(x, z, r, h) {
     const k = gkey(Math.floor(x / GC), Math.floor(z / GC));
     if (!cgrid.has(k)) cgrid.set(k, []);
-    cgrid.get(k).push({ x, z, r });
+    cgrid.get(k).push({ x, z, r, y: sample(x, z), h: h || 6 });
   }
   function queryCircles(x, z, rad, cb) {
     const i0 = Math.floor((x - rad - 3) / GC), i1 = Math.floor((x + rad + 3) / GC);
@@ -633,8 +633,28 @@ FC.World = (function () {
       if (tt >= maxT) return Infinity;
     }
   }
+  // trunks and boulders along the ray (vertical cylinders from the round-obstacle grid)
+  let cstamp = 0;
+  function rayCircles(ox, oy, oz, dx, dy, dz, maxT) {
+    let best = Infinity;
+    cstamp++;
+    const len = Math.min(maxT, 400), step = GC * 0.8;
+    for (let t = 0; t <= len + step; t += step) {
+      const x = ox + dx * Math.min(t, len), z = oz + dz * Math.min(t, len);
+      const arr = cgrid.get(gkey(Math.floor(x / GC), Math.floor(z / GC)));
+      if (!arr) continue;
+      for (const c of arr) {
+        if (c._s === cstamp) continue; c._s = cstamp;
+        const tt = FC.rayCyl(ox, oy, oz, dx, dy, dz, c.x, c.z, c.r, c.y - 0.5, c.y + c.h);
+        if (tt < best && tt <= maxT) best = tt;
+      }
+    }
+    return best;
+  }
   function raycast(ox, oy, oz, dx, dy, dz, maxT) {
     let best = rayTerrain(ox, oy, oz, dx, dy, dz, maxT), kind = best < Infinity ? 'terrain' : null;
+    const tc = rayCircles(ox, oy, oz, dx, dy, dz, Math.min(maxT, best));
+    if (tc < best) { best = tc; kind = 'tree'; }
     const ex = ox + dx * Math.min(maxT, best), ez = oz + dz * Math.min(maxT, best);
     boxesIn(Math.min(ox, ex), Math.min(oz, ez), Math.max(ox, ex), Math.max(oz, ez), (b) => {
       const t = FC.rayBox(ox, oy, oz, dx, dy, dz, b);

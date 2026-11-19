@@ -401,10 +401,29 @@ FC.Expansion = (function () {
   }
 
   function G() { return FC.G; }
+  function placeLandVehicles(Gm) {
+    const W = FC.World;
+    const flat = (cx, cz, minR, maxR) => {
+      for (let t = 0; t < 80; t++) {
+        const p = W.landPoint(cx, cz, minR, maxR);
+        if (W.slopeAt(p.x, p.z) < 0.15 && W.heightAt(p.x, p.z) > 1.5) return p;
+      }
+      return null;
+    };
+    for (const site of [W.start, W.villages[1], W.villages[3]]) {
+      const p = flat(site.x, site.z, site.r + 6, site.r + 30);
+      if (p) Gm.vehicles.push(new FC.Vehicle('gyro', p.x, p.z, Math.random() * 6, scene));
+    }
+    for (const site of [W.start].concat(W.villages)) {
+      const p = flat(site.x, site.z, 6, site.r + 10);
+      if (p) Gm.vehicles.push(new FC.Vehicle('quad', p.x, p.z, Math.random() * 6, scene));
+    }
+  }
   function init(sc, Gm) {
     scene = sc;
     buildZiplines();
     placeBoats(Gm);
+    placeLandVehicles(Gm);
     setupStory(Gm);
   }
   function update(dt, Gm) {

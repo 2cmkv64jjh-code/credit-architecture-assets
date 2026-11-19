@@ -96,8 +96,8 @@ FC.Foliage = (function () {
         const k = Math.floor(p.x / SC) + ',' + Math.floor(p.z / SC);
         if (!buckets.has(k)) buckets.set(k, []);
         buckets.get(k).push(p);
-        if (T.collide) W.addCircle(p.x, p.z, T.collide * p.s / T.h[0]);
-        if (T.collideRock && p.s > 1.4) W.addCircle(p.x, p.z, p.s * 0.45);
+        if (T.collide) W.addCircle(p.x, p.z, T.collide * p.s / T.h[0], p.s * 0.75);
+        if (T.collideRock && p.s > 1.4) W.addCircle(p.x, p.z, p.s * 0.45, p.s * 0.8);
       }
       for (const [k, list] of buckets) {
         const mesh = new THREE.InstancedMesh(sm.geometry, mats, list.length);

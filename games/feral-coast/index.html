@@ -35,6 +35,12 @@
   #loading { width: min(420px, 80vw); text-align: center; color: #ddd; }
   .lb { height: 8px; background: rgba(255,255,255,0.15); border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
   #loadbar { height: 100%; width: 0; background: linear-gradient(90deg, #ffc46b, #ff8a2a); transition: width 0.3s; }
+  .setbox { margin-top: 12px; color: #ddd; text-align: left; max-width: 520px; width: 100%; }
+  .setbox summary { cursor: pointer; text-align: center; color: var(--sand); }
+  .settings { display: grid; gap: 6px; margin-top: 8px; background: rgba(0,0,0,0.45); padding: 10px 14px; border-radius: 10px; }
+  .srow { display: grid; grid-template-columns: 1fr 160px 56px; gap: 10px; align-items: center; font-size: 13px; }
+  .srow input[type=checkbox] { justify-self: start; }
+  .sval { color: #aaa; text-align: right; }
   select { font: inherit; background: #222; color: #ddd; border: 1px solid #444; border-radius: 6px; padding: 4px 8px; }
   .row { display: flex; gap: 10px; align-items: center; margin-top: 12px; font-size: 13px; color: #bbb; flex-wrap: wrap; justify-content: center; }
   .row button { padding: 6px 12px; background: rgba(255,255,255,0.12); color: #ddd; }
@@ -100,6 +106,7 @@
       <p><kbd>RB</kbd> takedown / revive / use · <kbd>LB</kbd> tag</p>
       <p><kbd>D-Up</kbd> medkit · <kbd>Back</kbd> map · <kbd>Start</kbd> pause</p></div>
   </div>
+  <details class="setbox"><summary>Settings</summary><div id="settingsT"></div></details>
   <div class="row">Press <kbd>Space</kbd> or <kbd>Start</kbd> to deploy · progress saves automatically in this browser.</div>
   </div>
 </div>
@@ -113,6 +120,7 @@
     <div class="row">Difficulty: <select id="difficultyP"><option value="story">Story</option><option value="normal">Normal</option><option value="hard">Hard</option></select>
     Graphics: <select id="qualityP"><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div>
     <button id="saveQuit" class="alt">Save &amp; quit to title</button>
+    <details class="setbox"><summary>Settings</summary><div id="settingsP"></div></details>
   </div>
 </div>
 
@@ -128,7 +136,9 @@
 
 <script src="vendor/three.bundle.js"></script>
 <script src="assets/assets.js"></script>
+<script src="assets/sounds.js"></script>
 <script src="js/util.js"></script>
+<script src="js/settings.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/sfx.js"></script>
 <script src="js/input.js"></script>
@@ -146,6 +156,7 @@
 <script src="js/features.js"></script>
 <script src="js/expansion.js"></script>
 <script src="js/hud.js"></script>
+<script>FC.Settings.buildPanel(document.getElementById("settingsP")); FC.Settings.buildPanel(document.getElementById("settingsT"));</script>
 <script src="js/main.js"></script>
 </body>
 </html>

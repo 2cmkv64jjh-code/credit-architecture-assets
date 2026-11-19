@@ -6,10 +6,12 @@ FC.WEAPONS = {
   shotgun: { name: 'Breaker 12', pellets: 9, dmg: 15, head: 1.6, rate: 0.75, mag: 6, reserve: 30, maxReserve: 48, spread: 0.065, ads: 0.045, range: 50, noise: 85, auto: false, reload: 1.4, recoil: 0.07, sound: 'heavy', zoom: 1.2, price: 450 },
   sniper: { name: 'Longtide .308', dmg: 115, head: 3, rate: 1.15, mag: 5, reserve: 20, maxReserve: 40, spread: 0.03, ads: 0.0002, range: 520, noise: 110, auto: false, reload: 1.5, recoil: 0.09, sound: 'sniper', zoom: 4.5, scope: true, price: 800 },
   bow: { name: 'Silent Recurve', bow: true, mag: 1, reserve: 24, maxReserve: 36, rate: 0.3, reload: 0.45, zoom: 1.5, spread: 0.004, ads: 0.0008, range: 200 },
+  turret: { name: 'Mounted LMG', dmg: 28, head: 2, rate: 0.085, mag: 1, reserve: 0, spread: 0.022, ads: 0.012, range: 260, noise: 95, auto: true, reload: 0, recoil: 0.006, sound: 'rifle', zoom: 1.3 },
+  knives: { name: 'Throwing Knives', knives: true, mag: 3, reserve: 0, maxCount: 6, rate: 0.45, zoom: 1, price: 200 },
   molotov: { name: 'Molotov', throwable: 'molotov', mag: 3, maxCount: 5, rate: 0.8, zoom: 1, price: 120 },
   grenade: { name: 'Frag Grenade', throwable: 'grenade', mag: 2, maxCount: 4, rate: 0.8, zoom: 1, price: 150 },
 };
-FC.WEAPON_ORDER = ['pistol', 'bow', 'rifle', 'shotgun', 'sniper', 'molotov', 'grenade'];
+FC.WEAPON_ORDER = ['pistol', 'bow', 'rifle', 'shotgun', 'sniper', 'molotov', 'grenade', 'knives'];
 
 FC.Player = class {
   constructor(index, device, scene) {
@@ -67,6 +69,12 @@ FC.Player = class {
     const arms = (g) => { P.part(g, 0.085, 0.085, 0.34, 0.05, -0.1, 0.14, sleeve); P.part(g, 0.075, 0.075, 0.1, 0.03, -0.08, -0.05, skin); P.part(g, 0.085, 0.085, 0.36, -0.07, -0.09, -0.3, sleeve); P.part(g, 0.07, 0.07, 0.09, -0.04, -0.06, -0.42, skin); };
     const vm = {};
     vm.rifle = P.rifle(); arms(vm.rifle);
+    const rsup = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.22, 10), d); rsup.rotation.x = Math.PI / 2; rsup.position.set(0, 0.012, -0.78); rsup.visible = false;
+    vm.rifle.add(rsup); vm.rifle.userData.sup = rsup;
+    vm.knives = new THREE.Group();
+    P.part(vm.knives, 0.012, 0.03, 0.2, 0, 0, -0.14, new THREE.MeshStandardMaterial({ color: 0xc8ccd0, metalness: 0.8, roughness: 0.3 }));
+    P.part(vm.knives, 0.02, 0.035, 0.09, 0, 0, 0.0, w);
+    P.part(vm.knives, 0.085, 0.085, 0.34, 0.05, -0.1, 0.18, sleeve); P.part(vm.knives, 0.075, 0.075, 0.1, 0.03, -0.05, 0.03, skin);
     vm.pistol = new THREE.Group();
     P.part(vm.pistol, 0.045, 0.07, 0.2, 0, 0, -0.05, d); P.part(vm.pistol, 0.04, 0.12, 0.06, 0, -0.08, 0.02, d);
     const sup = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.2, 10), d); sup.rotation.x = Math.PI / 2; sup.position.set(0, 0.01, -0.25); vm.pistol.add(sup);
@@ -120,6 +128,21 @@ FC.Player = class {
     this.vmRoot.traverse((o) => o.layers.set(3 + this.index));
   }
 
+  // weapon stats with this player's attachments applied
+  wstat(k) {
+    const b = FC.WEAPONS[k], m = this.prog.mods || [];
+    if (!m.length) return b;
+    const w = Object.assign({}, b);
+    if (k === 'rifle') {
+      if (m.includes('rifle_sup')) { w.noise = 12; w.dmg *= 0.9; w.sound = 'rifle_sup'; }
+      if (m.includes('rifle_mag')) w.mag = 45;
+      if (m.includes('rifle_sight')) { w.zoom = 2.4; w.ads = 0.0015; }
+    }
+    if (k === 'sniper' && m.includes('sniper_sup')) { w.noise = 16; w.sound = 'sniper_sup'; }
+    if (k === 'pistol' && m.includes('pistol_mag')) w.mag = 18;
+    return w;
+  }
+  rumble(strong, weak, ms) { FC.Input.rumble(this.ctrl.padIndex, strong, weak, ms); }
   get eye() { return new THREE.Vector3(this.pos.x, this.pos.y + this.eyeH, this.pos.z); }
   get alive() { return this.state === 'alive'; }
   get speed() { return Math.hypot(this.vel.x, this.vel.z); }
@@ -141,6 +164,7 @@ FC.Player = class {
     this.hp -= amount;
     this.lastHurt = G.time;
     this.shake = Math.max(this.shake, 0.25);
+    this.rumble(Math.min(1, amount / 40 + 0.3), 0.3, 180);
     if (fromX !== undefined) this.damageDirs.push({ a: FC.yawTo(fromX - this.pos.x, fromZ - this.pos.z), t: 1.2 });
     if (this.damageDirs.length > 6) this.damageDirs.shift();
     if (kind !== 'fire' || Math.random() < 0.1) FC.Audio.hurt();
@@ -234,6 +258,21 @@ FC.Player = class {
     this.updateWeapons(dt, c, G);
     this.updateInteract(dt, c, G);
     if (pr.tag) G.tag(this);
+    // hold tag = binoculars: zoom in and auto-tag whatever sits under the reticle
+    this.tagHold = c.tag ? (this.tagHold || 0) + dt : 0;
+    this.binocs = this.tagHold > 0.35 && !this.vehicle && !this.zip;
+    if (this.binocs) {
+      this.binoT = (this.binoT || 0) - dt;
+      if (this.binoT <= 0) {
+        this.binoT = 0.25;
+        const o = this.cam.getWorldPosition(new THREE.Vector3()), d = this.forward();
+        for (const e of G.enemies) {
+          if (!e.alive || e.dormant || e.tagged) continue;
+          const v = e.chest.sub(o), dist = v.length();
+          if (dist < 350 && v.normalize().angleTo(d) < 0.03 && FC.World.los(o.x, o.y, o.z, e.chest.x, e.chest.y, e.chest.z)) { e.tagged = true; this.stats.tags++; FC.Audio.ui(); }
+        }
+      }
+    }
     if (pr.heal && this.medkits > 0 && this.hp < this.maxHp && this.healT <= 0) this.healT = 0.9;
     if (this.healT > 0) {
       this.healT -= dt;
@@ -328,7 +367,8 @@ FC.Player = class {
     if (pr.prev) want = owned[(cur - 1 + owned.length) % owned.length];
     if (want && want !== this.weapon) { this.weapon = want; this.reloadT = 0; this.switchT = 0.35; FC.Audio.click(); }
     this.switchT = Math.max(0, this.switchT - dt);
-    const w = FC.WEAPONS[this.weapon], a = this.ammo[this.weapon];
+    if (this.vehicle && this.seat === 1 && this.vehicle.turret) { this.updateTurret(dt, c, G); return; }
+    const w = this.wstat(this.weapon), a = this.ammo[this.weapon];
     const canUse = !this.swimming && !this.sprint && this.switchT <= 0 && this.healT <= 0 && !(this.vehicle && this.seat === 0);
     this.aimT = FC.clamp(this.aimT + (c.aim && canUse && !w.throwable ? 1 : -1) * dt * (w.scope ? 5 : 7), 0, 1);
     this.fireCd -= dt;
@@ -341,7 +381,11 @@ FC.Player = class {
       return;
     }
     if (!w.throwable && (pr.reload || (a.mag === 0 && (c.fire || pr.fire))) && a.mag < w.mag && a.reserve > 0) {
-      this.reloadT = w.reload * (this.has('fasthands') ? 0.7 : 1); FC.Audio.reload(); return;
+      this.reloadT = w.reload * (this.has('fasthands') ? 0.7 : 1); FC.Audio.reload(this.weapon); return;
+    }
+    if (w.knives) {
+      if (pr.fire && canUse && a.mag > 0 && this.fireCd <= 0) { a.mag--; this.fireCd = w.rate; G.throwKnife(this); this.kick = 0.6; FC.Audio.whoosh(0.5); }
+      return;
     }
     if (w.bow) {
       // hold to draw, release to loose; arrows nock automatically
@@ -365,12 +409,29 @@ FC.Player = class {
       if (w.throwable) { G.throwProjectile(this, w.throwable); this.kick = 0.4; }
       else {
         G.playerShoot(this, w);
+        this.rumble(w.sound === 'sniper' || w.sound === 'heavy' ? 0.7 : 0.15, w.auto ? 0.35 : 0.6, w.auto ? 60 : 120);
         this.recoil += w.recoil * steady; this.kick = 1;
         this.pitch = Math.min(1.45, this.pitch + w.recoil * steady * (this.aimT > 0.5 ? 0.5 : 1));
         this.yaw += (Math.random() - 0.5) * w.recoil * steady * 0.6;
         this.flash.visible = true; this.flashT = 0.05;
         this.firedT = 0.25;
       }
+    }
+  }
+
+  // jeep passenger: infinite-ammo mounted machine gun that overheats
+  updateTurret(dt, c, G) {
+    const v = this.vehicle, w = FC.WEAPONS.turret;
+    v.heat = Math.max(0, v.heat - dt * (v.overheated ? 0.4 : 0.28));
+    if (v.overheated && v.heat < 0.3) v.overheated = false;
+    this.fireCd -= dt; this.recoil *= Math.max(0, 1 - dt * 8);
+    if (v.gunMount) v.gunMount.rotation.set(this.pitch, this.yaw - v.yaw, 0);
+    if (c.fire && !v.overheated && this.fireCd <= 0) {
+      this.fireCd = w.rate; v.heat += 0.055;
+      if (v.heat >= 1) { v.overheated = true; FC.Audio.dry(); }
+      G.playerShoot(this, w);
+      this.recoil += w.recoil; this.pitch = Math.min(1.45, this.pitch + w.recoil * 0.5);
+      this.rumble(0.25, 0.4, 60);
     }
   }
 
@@ -394,7 +455,7 @@ FC.Player = class {
     if (FC.Expansion.interact(this, c, G)) return;
     const e = G.takedownTarget(this);
     if (e) {
-      this.prompt = `[${L.interact}] Takedown`;
+      this.prompt = this.dfa ? `[${L.interact}] Death from above` : `[${L.interact}] Takedown`;
       if (c.pressed.interact) G.takedown(this, e);
       return;
     }
@@ -454,9 +515,11 @@ FC.Player = class {
     this.cam.rotation.set(this.pitch - this.lunge * 0.3, this.yaw, this.state === 'downed' ? 0.3 : 0);
     this.lunge = Math.max(0, this.lunge - dt * 3);
     const w = FC.WEAPONS[this.weapon];
-    const hfov = 92 / (1 + (w.zoom - 1) * this.aimT);
+    const ws = this.wstat(this.weapon);
+    const hfov = this.binocs ? FC.Settings.get().fov / 5 : FC.Settings.get().fov / (1 + (ws.zoom - 1) * this.aimT);
     this.setFov(hfov);
-    const showVm = this.state === 'alive' && !this.climbing && !this.menu;
+    const showVm = this.state === 'alive' && !this.climbing && !this.menu && !this.binocs;
+    if (this.vm.rifle.userData.sup) this.vm.rifle.userData.sup.visible = (this.prog.mods || []).includes('rifle_sup');
     for (const k in this.vm) this.vm[k].visible = showVm && k === this.weapon && (!w.throwable || this.ammo[k].mag > 0) && !(w.scope && this.aimT > 0.85);
     if (this.flashT > 0) { this.flashT -= dt; if (this.flashT <= 0) this.flash.visible = false; }
     const a = this.aimT;

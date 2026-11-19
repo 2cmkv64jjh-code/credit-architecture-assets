@@ -4,15 +4,19 @@ FC.Vehicle = class {
   constructor(kind, x, z, yaw, scene) {
     this.kind = kind; // 'jeep' | 'truck' | 'boat'
     this.boat = kind === 'boat' || kind === 'tideboat';
+    this.air = kind === 'gyro';
+    this.turret = kind === 'jeep';
     this.pos = new THREE.Vector3(x, this.boat ? 0 : FC.World.heightAt(x, z) + 0.2, z);
     this.yaw = yaw || 0; this.pitch = 0; this.roll = 0;
     this.speed = 0; this.vy = 0; this.steer = 0;
-    this.hp = kind === 'truck' ? 700 : this.boat ? 380 : 450; this.maxHp = this.hp; this.dead = false;
+    this.hp = kind === 'truck' ? 700 : this.boat ? 380 : this.air ? 320 : kind === 'quad' ? 260 : 450; this.maxHp = this.hp; this.dead = false;
     this.seats = [null, null];
-    this.len = kind === 'truck' ? 6.2 : this.boat ? 5.2 : 4.4; this.wid = kind === 'truck' ? 2.4 : 2.0;
+    this.len = kind === 'truck' ? 6.2 : this.boat ? 5.2 : this.air ? 5 : kind === 'quad' ? 2.4 : 4.4; this.wid = kind === 'truck' ? 2.4 : kind === 'quad' ? 1.3 : 2.0;
     this.group = new THREE.Group();
     let mesh;
     if (this.boat) mesh = FC.Vehicle.boatMesh(kind === 'tideboat');
+    else if (this.air) mesh = FC.Vehicle.gyroMesh();
+    else if (kind === 'quad') mesh = FC.Vehicle.quadMesh();
     else {
       mesh = FC.Assets.propMesh(kind === 'truck' ? 'truck' : 'suv', { length: this.len });
       mesh.rotation.y = Math.PI; // model faces +z
@@ -20,6 +24,14 @@ FC.Vehicle = class {
     }
     this.mesh = mesh;
     this.group.add(mesh);
+    if (this.turret) {
+      const tg = new THREE.Group(); tg.position.set(0.42, 1.75, 0.35);
+      const dm = new THREE.MeshStandardMaterial({ color: 0x1e2124, roughness: 0.5, metalness: 0.6 });
+      const b1 = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.9), dm); b1.position.z = -0.3; tg.add(b1);
+      const b2 = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.6, 8), dm); b2.rotation.x = Math.PI / 2; b2.position.z = -0.95; tg.add(b2);
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.5, 0.08), dm); post.position.y = -0.3; tg.add(post);
+      this.group.add(tg); this.gunMount = tg; this.heat = 0;
+    }
     const lightMat = new THREE.MeshStandardMaterial({ color: 0xfff1c2, emissive: 0xfff1c2, emissiveIntensity: 0 });
     this.lights = [];
     for (const sx of [-0.6, 0.6]) {
@@ -53,7 +65,13 @@ FC.Vehicle = class {
     this.seats[i] = null; p.vehicle = null; p.seat = -1;
     const side = new THREE.Vector3(i === 0 ? -1 : 1, 0, 0).applyEuler(new THREE.Euler(0, this.yaw, 0)).multiplyScalar(this.wid / 2 + 0.9);
     p.pos.copy(this.pos).add(side);
-    p.pos.y = FC.World.groundAt(p.pos.x, p.pos.z, this.pos.y + 1, 0.4);
+    const gy = FC.World.groundAt(p.pos.x, p.pos.z, this.pos.y + 1, 0.4);
+    if (this.air && this.pos.y > gy + 4) { // bail out mid-air: keep momentum, glider is one jump away
+      p.vel.copy(this.forward()).multiplyScalar(this.speed * 0.8); p.vel.y = this.vy; p.onGround = false;
+      p.msg('Bailed out — press jump to open the glider', '#9be7e1', 2.5);
+      return;
+    }
+    p.pos.y = gy;
     if (FC.World.pointBlocked(p.pos.x, p.pos.z, 0.4)) p.pos.addScaledVector(this.forward(), -this.len * 0.7);
     p.vel.set(0, 0, 0);
   }
@@ -61,6 +79,7 @@ FC.Vehicle = class {
   control(p, c, dt) {
     if (p.seat !== 0) { this.passengerLook(p, c); return; }
     this.throttle = c.my; this.steerIn = -c.mx; this.brake = !!c.jump; this.boost = !!c.sprint;
+    this.climb = c.jump ? 1 : c.crouch ? -1 : 0;
     // driver freely looks around (camera orbit)
     p.camYaw = (p.camYaw || 0) - c.lx * 0.8;
     p.camPitch = FC.clamp((p.camPitch || -0.18) - c.ly * 0.6, -0.8, 0.4);
@@ -103,6 +122,7 @@ FC.Vehicle = class {
       if (this.smokeT <= 0 && this.deadT === undefined) this.deadT = 0;
       this.deadT += dt;
       if (this.boat) { this.pos.y = Math.max(-3, this.pos.y - dt * 0.35); this.group.position.copy(this.pos); this.group.rotation.x += dt * 0.05; }
+      if (this.air) { const gg = Math.max(0, FC.World.heightAt(this.pos.x, this.pos.z)); if (this.pos.y > gg + 0.5) { this.vy = (this.vy || 0) - 20 * dt; this.pos.y = Math.max(gg + 0.5, this.pos.y + this.vy * dt); this.pos.addScaledVector(this.forward(), this.speed * dt); this.group.position.copy(this.pos); this.group.rotation.z += dt * 2; } }
       if (this.deadT < 25 && Math.random() < dt * 6) FC.FX.smoke(this.pos.x, this.pos.y + 1.5, this.pos.z, 1.4);
       if (this.deadT < 10 && Math.random() < dt * 20) FC.FX.fire(this.pos.x, this.pos.y + 1, this.pos.z, 0.7);
       return;
@@ -113,11 +133,13 @@ FC.Vehicle = class {
     if (driver) { throttle = this.throttle || 0; steerIn = this.steerIn || 0; brake = this.brake; boost = this.boost; }
     else if (this.ai) { const a = this.ai(dt, G); throttle = a.throttle; steerIn = a.steer; brake = a.brake; }
     if (this.boat) { this.updateBoat(dt, G, driver, throttle, steerIn, brake, boost); return; }
+    if (this.air) { this.updateGyro(dt, G, driver, throttle, steerIn, boost); return; }
     const ground = W.heightAt(this.pos.x, this.pos.z);
     const inWater = ground < -0.8;
     const offroad = W.roadAt(this.pos.x, this.pos.z) < 0.3;
-    const maxF = (this.kind === 'truck' ? 20 : 30) * (boost ? 1.15 : 1) * (offroad ? 0.8 : 1) * (inWater ? 0.25 : 1);
-    const accel = this.kind === 'truck' ? 9 : 14;
+    const quad = this.kind === 'quad';
+    const maxF = (this.kind === 'truck' ? 20 : quad ? 27 : 30) * (boost ? 1.15 : 1) * (offroad ? (quad ? 0.95 : 0.8) : 1) * (inWater ? 0.25 : 1);
+    const accel = this.kind === 'truck' ? 9 : quad ? 18 : 14;
     if (throttle > 0.05) this.speed += throttle * accel * dt * (this.speed < 0 ? 2.5 : 1);
     else if (throttle < -0.05) this.speed += throttle * accel * dt * (this.speed > 0 ? 2.5 : 0.6);
     else this.speed *= Math.max(0, 1 - dt * 0.8);
@@ -166,6 +188,46 @@ FC.Vehicle = class {
     this.engine = Math.abs(this.speed);
   }
 
+  // Gyrocopter: throttle for airspeed, jump/crouch to climb/descend, lift needs speed; gentle autorotation when slow.
+  updateGyro(dt, G, driver, throttle, steerIn, boost) {
+    const W = FC.World;
+    const ground = Math.max(W.heightAt(this.pos.x, this.pos.z), 0);
+    const onGround = this.pos.y <= ground + 0.65;
+    const climb = driver ? (this.climb || 0) : 0;
+    const maxF = 40 * (boost ? 1.2 : 1);
+    if (throttle > 0.05) this.speed += throttle * 9 * dt;
+    else if (throttle < -0.05) this.speed += throttle * 12 * dt;
+    else this.speed *= Math.max(0, 1 - dt * (onGround ? 1.5 : 0.15));
+    this.speed = FC.clamp(this.speed, onGround ? -3 : 0, maxF);
+    this.rotor = (this.rotor || 0) + dt * (8 + Math.abs(this.speed) * 0.6 + (driver ? 10 : 0));
+    if (this.mesh.userData.rotor) this.mesh.userData.rotor.rotation.y = this.rotor;
+    if (this.mesh.userData.prop) this.mesh.userData.prop.rotation.z = this.rotor * 3;
+    const lift = FC.clamp((this.speed - 9) / 14, 0, 1);
+    let vy = 0;
+    if (driver) vy = climb > 0 ? 7 * lift : climb < 0 ? -6 : (lift > 0.2 ? 0 : -2.5);
+    else vy = onGround ? 0 : -3;
+    this.vy += (vy - this.vy) * Math.min(1, dt * 2.5);
+    this.yaw += steerIn * dt * (onGround ? 0.8 : 1.1) * (driver ? 1 : 0);
+    const f = this.forward();
+    this.pos.addScaledVector(f, this.speed * dt);
+    this.pos.y += this.vy * dt;
+    if (this.pos.y < ground + 0.6) {
+      if (this.vy < -7 || (ground <= 0.01 && W.heightAt(this.pos.x, this.pos.z) < -0.8)) { this.damage(G, 999, null); return; }
+      this.pos.y = ground + 0.6; this.vy = Math.max(0, this.vy);
+    }
+    if (onGround) W.collide(this.pos, 1.2, this.pos.y, 2);
+    this.pos.y = Math.min(this.pos.y, 260);
+    const r = Math.hypot(this.pos.x, this.pos.z);
+    if (r > 790) { this.pos.x *= 790 / r; this.pos.z *= 790 / r; this.yaw += Math.PI * dt; }
+    this.pitch += ((onGround ? 0 : -this.vy * 0.025 - Math.min(0.15, this.speed * 0.004)) - this.pitch) * Math.min(1, dt * 3);
+    this.roll += ((onGround ? 0 : steerIn * 0.35) - this.roll) * Math.min(1, dt * 3);
+    this.group.position.copy(this.pos);
+    this.group.rotation.set(this.pitch, this.yaw, this.roll, 'YXZ');
+    this.lightMat.emissiveIntensity = FC.Env.night > 0.5 ? 4 : 0;
+    if (this.hp < this.maxHp * 0.35 && Math.random() < dt * 8) FC.FX.smoke(this.pos.x, this.pos.y + 1.2, this.pos.z, 0.8);
+    this.engine = Math.abs(this.speed);
+  }
+
   // Speedboat: rides the water surface, beaches in the shallows, banks into turns and throws spray.
   updateBoat(dt, G, driver, throttle, steerIn, brake, boost) {
     const W = FC.World;
@@ -204,6 +266,39 @@ FC.Vehicle = class {
     if (this.hp < this.maxHp * 0.35 && !this.sinking && Math.random() < dt * 8) FC.FX.smoke(this.pos.x, this.pos.y + 1.2, this.pos.z, 0.8);
     this.engine = Math.abs(this.speed);
   }
+};
+
+// Procedural gyrocopter: pod, tail boom, twin-blade rotor on a mast and a pusher propeller.
+FC.Vehicle.gyroMesh = function () {
+  const g = new THREE.Group();
+  const S = (c, o) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.5 }, o || {}));
+  const body = S(0xe2a72e), dark = S(0x222222, { metalness: 0.5 });
+  const pod = new THREE.Mesh(new THREE.SphereGeometry(0.9, 14, 10), body); pod.scale.set(0.95, 0.85, 1.6); pod.position.set(0, 1.05, -0.3); pod.castShadow = true; g.add(pod);
+  const glass = new THREE.Mesh(new THREE.SphereGeometry(0.62, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), S(0x88aabb, { transparent: true, opacity: 0.45, roughness: 0.1 }));
+  glass.position.set(0, 1.45, -0.9); glass.scale.set(1, 0.7, 1.2); g.add(glass);
+  const boom = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 2.6, 8), body); boom.rotation.x = Math.PI / 2; boom.position.set(0, 1.25, 1.9); g.add(boom);
+  const fin = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.9, 0.6), body); fin.position.set(0, 1.65, 3.1); g.add(fin);
+  const tailH = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.05, 0.4), body); tailH.position.set(0, 1.3, 3.1); g.add(tailH);
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.1, 8), dark); mast.position.set(0, 2.25, 0.2); g.add(mast);
+  const rotor = new THREE.Group(); rotor.position.set(0, 2.82, 0.2);
+  for (const sx of [1, -1]) { const b = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.03, 0.22), dark); b.position.x = sx * 1.8; b.castShadow = true; rotor.add(b); }
+  g.add(rotor); g.userData.rotor = rotor;
+  const prop = new THREE.Group(); prop.position.set(0, 1.25, 0.75);
+  for (const a of [0, Math.PI / 2]) { const b = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.12, 0.03), dark); b.rotation.z = a; prop.add(b); }
+  g.add(prop); g.userData.prop = prop;
+  for (const sx of [-0.7, 0.7]) { const sk = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 2.2), dark); sk.position.set(sx, 0.1, -0.2); g.add(sk); const st = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.6, 0.05), dark); st.position.set(sx, 0.4, -0.2); g.add(st); }
+  return g;
+};
+// Procedural quad bike: chassis, four chunky wheels, handlebars.
+FC.Vehicle.quadMesh = function () {
+  const g = new THREE.Group();
+  const S = (c, o) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.6 }, o || {}));
+  const red = S(0x2e7d32), dark = S(0x1b1b1b), metal = S(0x888888, { metalness: 0.6 });
+  const box = (w, h, d, x, y, z, m) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); b.castShadow = true; g.add(b); return b; };
+  box(0.9, 0.35, 1.8, 0, 0.6, 0, red); box(0.55, 0.2, 0.7, 0, 0.85, 0.3, dark); box(1.0, 0.12, 0.5, 0, 0.82, -0.75, red); box(1.0, 0.12, 0.5, 0, 0.82, 0.8, red);
+  box(0.7, 0.05, 0.05, 0, 1.15, -0.55, metal); box(0.05, 0.4, 0.05, 0, 0.95, -0.55, metal);
+  for (const [x, z] of [[-0.6, -0.65], [0.6, -0.65], [-0.6, 0.7], [0.6, 0.7]]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.33, 0.28, 12), dark); w.rotation.z = Math.PI / 2; w.position.set(x, 0.33, z); w.castShadow = true; g.add(w); }
+  return g;
 };
 
 // Procedural speedboat (no boat model in the CC0 packs): hull, bow wedge, windscreen, seats, outboard.

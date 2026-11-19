@@ -7,6 +7,29 @@ FC.Audio = (function () {
   const S = FC.Synth;
   let ready = false;
   const loops = {};
+  // recorded CC0 weapon samples (decoded once into the plinkfx AudioContext)
+  const REC = {};
+  async function loadRecordings() {
+    if (!window.FC_SOUNDS || !P) return;
+    const ctx = P.context();
+    for (const [k, b64] of Object.entries(window.FC_SOUNDS)) {
+      try {
+        const bin = atob(b64), u = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+        REC[k] = await ctx.decodeAudioData(u.buffer);
+      } catch (e) { /* keep synth fallback */ }
+    }
+  }
+  function rec(name, vol, pan, rate, delay) {
+    if (!ready || !REC[name] || !(vol > 0.004)) return false;
+    const ctx = P.context(), t = ctx.currentTime + (delay || 0);
+    const src = ctx.createBufferSource(); src.buffer = REC[name]; src.playbackRate.value = rate || 1;
+    const g = ctx.createGain(); g.gain.value = Math.min(1.2, vol);
+    const pn = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+    src.connect(g); if (pn) { pn.pan.value = FC.clamp(pan || 0, -1, 1); g.connect(pn); pn.connect(ctx.destination); } else g.connect(ctx.destination);
+    src.start(t);
+    return true;
+  }
 
   function play(name, o) {
     if (!P || !ready) return null;
@@ -17,8 +40,10 @@ FC.Audio = (function () {
     if (P && !ready) {
       try {
         P.unlockAudio();
-        P.volume(0.8);
+        P.volume(FC.Settings.get().master);
+        FC.Settings.onChange((st) => { try { P.volume(st.master); } catch (e) { /* ignore */ } });
         ready = true;
+        loadRecordings();
         P.preload(['gunshot', 'shotgun', 'machine-gun', 'reload', 'dry-fire', 'shell-casing', 'ricochet', 'explosion', 'explosion-big',
           'enemy-hit', 'body-fall', 'hurt', 'step-grass', 'step-sand', 'step-stone', 'pickup', 'coin', 'glass-break', 'ignite', 'toss'], 2);
       } catch (e) { ready = false; }
@@ -44,6 +69,15 @@ FC.Audio = (function () {
       vol = vol === undefined ? 1 : vol;
       if (!ready) return S.shot(kind, vol);
       const pan = pos ? where(pos, 400).pan : 0;
+      const rr = FC.rand(0.94, 1.06);
+      const dist = pos ? 1 - Math.min(1, vol) : 0; // far shots lose their top end via a lower rate
+      const recName = { pistol: 'silenced', sniper: 'sniper', heavy: 'shotgun', rifle_sup: 'silenced', sniper_sup: 'silenced' }[kind] || 'rifle';
+      const recRate = kind === 'rifle_sup' ? 0.85 : kind === 'sniper_sup' ? 0.7 : 1;
+      if (rec(recName, (kind === 'pistol' || kind === 'rifle_sup' ? 0.45 : kind === 'sniper_sup' ? 0.6 : 0.85) * vol, pan, rr * recRate * (1 - dist * 0.12))) {
+        if (kind === 'sniper') play('explosion-distant', { volume: 0.3 * vol, delay: 0.08, pan });
+        if (kind !== 'heavy' && Math.random() < 0.4) play('shell-casing', { volume: 0.1 * vol, delay: 0.3, pan });
+        return;
+      }
       if (kind === 'pistol') { play('gunshot', { volume: 0.28 * vol, rate: 1.75, pan, cooldown: 0 }); play('shell-casing', { volume: 0.12 * vol, delay: 0.25, pan }); }
       else if (kind === 'sniper') { play('gunshot', { volume: 1.0 * vol, rate: 0.72, pan, cooldown: 0 }); play('explosion-distant', { volume: 0.35 * vol, delay: 0.05, pan }); play('shell-casing', { volume: 0.15 * vol, delay: 0.6, pan }); }
       else if (kind === 'heavy') { play('shotgun', { volume: 0.9 * vol, pan, cooldown: 0 }); }
@@ -63,7 +97,12 @@ FC.Audio = (function () {
     hurt() { if (!ready) return S.hurt(); play('hurt', { volume: 0.55, cooldown: 0.25 }); },
     click() { if (!ready) return S.click(); play('click-soft', { volume: 0.4 }); },
     dry() { if (!ready) return S.click(); play('dry-fire', { volume: 0.6 }); },
-    reload() { if (!ready) return S.click(); play('reload', { volume: 0.55 }); },
+    reload(weapon) {
+      if (!ready) return S.click();
+      const name = weapon === 'pistol' ? 'reload_pistol' : weapon === 'shotgun' ? 'pump' : weapon === 'bow' ? null : 'reload_rifle';
+      if (name && rec(name, 0.5, 0, weapon === 'sniper' ? 0.85 : 1.15)) return;
+      play('reload', { volume: 0.55 });
+    },
     pickup() { if (!ready) return S.pickup(); play('pickup', { volume: 0.5 }); },
     coin() { if (!ready) return S.pickup(); play('coin', { volume: 0.4 }); },
     ui() { if (!ready) return S.ui(); play('select-soft', { volume: 0.5 }); },

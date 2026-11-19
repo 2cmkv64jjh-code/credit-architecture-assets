@@ -301,6 +301,7 @@
   }
   G._hitscan = (o, d, range) => hitscan(o, d, range);
   G.fireArrow = (p, draw) => FC.Features.fireArrow(G, p, draw);
+  G.throwKnife = (p) => FC.Features.fireArrow(G, p, 0.7, { knife: true });
   G.playerShoot = (p, w) => {
     const o = p.cam.getWorldPosition(new THREE.Vector3());
     const base = p.forward();
@@ -385,7 +386,7 @@
     for (const p of G.players) {
       const d = p.pos.distanceTo(pos);
       if (d < radius) p.damage(70 * (1 - d / radius) * (owner && owner.index === undefined ? G.enemyDmgMul : 1), x, z, G, 'explosion');
-      if (d < 60) p.shake = Math.max(p.shake, 0.6 * (1 - d / 60));
+      if (d < 60) { p.shake = Math.max(p.shake, 0.6 * (1 - d / 60)); p.rumble(1 - d / 60, 0.8 * (1 - d / 60), 350); }
     }
     for (const b of FC.World.barrels) if (!b.exploded && Math.hypot(b.x - x, b.z - z) < radius * 0.8) setTimeout(() => explodeBarrel(b, owner), 150 + Math.random() * 250);
     G.noise(pos, 100, owner);
@@ -419,9 +420,16 @@
     }
   };
   G.takedownTarget = (p) => {
+    const airborne = !p.onGround && !p.vehicle && !p.zip && p.vel.y < -1.5;
+    p.dfa = false;
     for (const e of G.enemies) {
       if (!e.alive || e.dormant || e.state === 'ride') continue;
       const d = Math.hypot(e.pos.x - p.pos.x, e.pos.z - p.pos.z);
+      if (airborne) {
+        const dy = p.pos.y - e.pos.y;
+        if (d < 2.8 && dy > 0.9 && dy < 7 && e.type !== 'boss') { p.dfa = true; return e; }
+        continue;
+      }
       if (d > (p.chainT > 0 ? 4 : 2.3) || Math.abs(e.pos.y - p.pos.y) > 1.2) continue;
       const toE = FC.yawTo(e.pos.x - p.pos.x, e.pos.z - p.pos.z);
       if (Math.abs(FC.wrapAngle(toE - p.yaw)) > 0.9) continue;
@@ -436,6 +444,8 @@
   };
   G.takedown = (p, e) => {
     p.lunge = 1;
+    if (p.dfa) { p.pos.set(e.pos.x, e.pos.y, e.pos.z); p.vel.set(0, 0, 0); p.gliding = false; p.shake = 0.5; FC.Progression.xp(p, 20, 'Death from above', G); }
+    p.rumble(0.8, 0.5, 220);
     e.die(G, p, false, true);
     if (p.has('chain')) p.chainT = 3;
     FC.Audio.takedown();
@@ -603,6 +613,7 @@
         if (pk.kind === 'med') { if (p.medkits >= 5) continue; p.medkits++; p.msg('+1 Medkit', '#7bed9f', 1.5); }
         else if (pk.kind === 'molotov') { const k = p.owned.has('grenade') && Math.random() < 0.5 ? 'grenade' : 'molotov'; if (p.ammo[k].mag >= FC.Progression.maxThrow(p, k)) continue; p.ammo[k].mag++; p.msg(`+1 ${FC.WEAPONS[k].name}`, '#ffb35c', 1.5); }
         else if (pk.kind === 'cash' || pk.kind === 'pelt') { FC.Progression.cash(p, pk.value, pk.kind === 'pelt' ? 'Pelt' : 'Loot', G); FC.Audio.coin(); taken = true; continue; }
+        else if (pk.kind === 'knife') { if (p.ammo.knives.mag >= FC.WEAPONS.knives.maxCount) continue; p.ammo.knives.mag++; p.owned.add('knives'); p.msg('+1 Knife', '#ddd', 1); }
         else if (pk.kind === 'arrow') { if (p.ammo.bow.reserve >= FC.Progression.maxReserve(p, 'bow')) continue; p.ammo.bow.reserve++; p.msg('+1 Arrow', '#d8c8a0', 1); }
         else { for (const k of ['pistol', 'bow', 'rifle', 'shotgun', 'sniper']) p.ammo[k].reserve = Math.min(FC.Progression.maxReserve(p, k), p.ammo[k].reserve + Math.ceil(FC.WEAPONS[k].mag * 0.8)); p.msg('+Ammo', '#ffd166', 1.2); }
         FC.Audio.pickup(); taken = true;
@@ -747,7 +758,7 @@
     if (G.state !== 'title' || slots.includes(dev) || slots.length >= 2) return;
     slots.push(dev); refreshSlots(); FC.Audio.init(); FC.Audio.ui();
   }
-  $('title').addEventListener('mousedown', (e) => { if (e.target.closest('button') || e.target.closest('select')) return; join('kbm'); });
+  $('title').addEventListener('mousedown', (e) => { if (e.target.closest('button') || e.target.closest('select') || e.target.closest('.setbox')) return; join('kbm'); });
   $('newgame').addEventListener('click', () => { if (!slots.length) join('kbm'); startGame(false); });
   $('continue').addEventListener('click', () => { if (!slots.length) join('kbm'); startGame(true); });
   $('resetSlots').addEventListener('click', (e) => { e.stopPropagation(); slots.length = 0; refreshSlots(); });
@@ -851,6 +862,7 @@
   let last = performance.now();
   function frame(now) {
     let dt = Math.min(0.05, (now - last) / 1000);
+    G.fps = G.fps ? G.fps * 0.95 + (1000 / Math.max(1, now - last)) * 0.05 : 60;
     if (G.slowT > 0) { G.slowT -= dt; dt *= 0.35; }
     last = now;
     FC.Input.update();

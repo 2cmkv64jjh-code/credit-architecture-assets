@@ -21,6 +21,12 @@ FC.SHOP = [
   { id: 'throw', name: '+2 molotovs / grenades', price: 90, kind: 'throw' },
   { id: 'med', name: 'Medkit', price: 60, kind: 'med' },
   { id: 'companion', name: 'Wolf companion (Fang)', price: 350, kind: 'companion' },
+  { id: 'knives', name: 'Throwing knives (silent, retrievable)', price: 200, kind: 'weapon' },
+  { id: 'rifle_sup', name: 'Carbine suppressor', price: 400, kind: 'mod' },
+  { id: 'rifle_sight', name: 'Carbine holo-sight (2.4x)', price: 300, kind: 'mod' },
+  { id: 'rifle_mag', name: 'Carbine extended mag (45)', price: 250, kind: 'mod' },
+  { id: 'sniper_sup', name: 'Marksman suppressor', price: 500, kind: 'mod' },
+  { id: 'pistol_mag', name: 'Pistol extended mag (18)', price: 150, kind: 'mod' },
 ];
 
 FC.Progression = (function () {
@@ -126,6 +132,7 @@ FC.Menus = (function () {
     } else if (item.kind === 'throw') {
       for (const k of ['molotov', 'grenade']) if (p.owned.has(k)) p.ammo[k].mag = Math.min(FC.Progression.maxThrow(p, k), p.ammo[k].mag + 2);
     } else if (item.kind === 'med') p.medkits = Math.min(5, p.medkits + 1);
+    else if (item.kind === 'mod') { p.prog.mods = p.prog.mods || []; if (p.prog.mods.includes(item.id)) { p.msg('Already fitted', '#aaa', 1.5); FC.Progression.cash(p, item.price, null, G); return; } p.prog.mods.push(item.id); p.msg(`Fitted: ${item.name}`, '#ffd166', 2); }
     else if (item.kind === 'companion') { if (p.companion) { p.msg('Already running with you', '#aaa', 1.5); FC.Progression.cash(p, item.price, null, G); return; } FC.Expansion.giveCompanion(p); }
     FC.Audio.pickup();
     FC.Progression.save(G);

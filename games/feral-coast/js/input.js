@@ -73,7 +73,8 @@ FC.Input = (function () {
       if (this.device === 'kbm') {
         s.mx = (k('KeyD') ? 1 : 0) - (k('KeyA') ? 1 : 0);
         s.my = (k('KeyW') ? 1 : 0) - (k('KeyS') ? 1 : 0);
-        s.lx = mdx * this.sens; s.ly = mdy * this.sens;
+        const ST = FC.Settings.get();
+        s.lx = mdx * this.sens * ST.sensMouse; s.ly = mdy * this.sens * ST.sensMouse * (ST.invertY ? -1 : 1);
         s.fire = locked && mbtn.has(0); s.aim = locked && mbtn.has(2);
         s.reload = k('KeyR'); s.jump = k('Space'); s.crouch = k('KeyC') || k('ControlLeft');
         s.sprint = k('ShiftLeft'); s.interact = k('KeyE'); s.tag = k('KeyQ'); s.heal = k('KeyF');
@@ -85,7 +86,8 @@ FC.Input = (function () {
         s.mx = (k('KeyL') ? 1 : 0) - (k('KeyJ') ? 1 : 0);
         s.my = (k('KeyI') ? 1 : 0) - (k('KeyK') ? 1 : 0);
         s.lx = ((k('ArrowRight') ? 1 : 0) - (k('ArrowLeft') ? 1 : 0)) * 2.4 * dt;
-        s.ly = ((k('ArrowDown') ? 1 : 0) - (k('ArrowUp') ? 1 : 0)) * 1.7 * dt;
+        s.ly = ((k('ArrowDown') ? 1 : 0) - (k('ArrowUp') ? 1 : 0)) * 1.7 * dt * FC.Settings.get().sensPad * (FC.Settings.get().invertY ? -1 : 1);
+        s.lx *= FC.Settings.get().sensPad;
         s.fire = k('Enter') || k('NumpadEnter'); s.aim = k('ShiftRight');
         s.reload = k('KeyO'); s.jump = k('KeyH'); s.crouch = k('KeyN'); s.sprint = k('KeyM');
         s.interact = k('KeyU'); s.tag = k('KeyY'); s.next = k('KeyP'); s.heal = k('Digit9'); s.map = k('Period'); s.back = k('Backspace');
@@ -105,7 +107,8 @@ FC.Input = (function () {
           if (lm < 0.15) { lx = 0; ly = 0; } else {
             const c = Math.min(1, (lm - 0.15) / 0.85); const sc = (c * c) / lm; lx *= sc; ly *= sc;
           }
-          s.lx = lx * 3.3 * dt; s.ly = ly * 2.3 * dt;
+          const ST = FC.Settings.get();
+          s.lx = lx * 3.3 * dt * ST.sensPad; s.ly = ly * 2.3 * dt * ST.sensPad * (ST.invertY ? -1 : 1);
           const b = (i) => !!(gp.buttons[i] && (gp.buttons[i].pressed || gp.buttons[i].value > 0.35));
           s.jump = b(0); s.crouch = b(1); s.reload = b(2); s.next = b(3); s.tag = b(4); s.interact = b(5);
           s.aim = b(6); s.fire = b(7); s.pause = b(9); s.sprint = b(10); s.heal = b(12);
@@ -130,6 +133,12 @@ FC.Input = (function () {
     onKey(f) { keyListeners.push(f); },
     onLockChange(f) { lockListener = f; },
     get locked() { return locked; },
+    rumble(idx, strong, weak, ms) {
+      if (idx < 0 || !FC.Settings.get().rumble) return;
+      const gp = pads()[idx];
+      const act = gp && (gp.vibrationActuator || (gp.hapticActuators && gp.hapticActuators[0]));
+      try { if (act && act.playEffect) act.playEffect('dual-rumble', { duration: ms, strongMagnitude: strong, weakMagnitude: weak }); } catch (e) { /* unsupported */ }
+    },
     lock() { if (canvasEl && canvasEl.requestPointerLock) { try { canvasEl.requestPointerLock(); } catch (e) { /* ignore */ } } },
     unlock() { if (document.exitPointerLock) document.exitPointerLock(); },
   };

@@ -126,7 +126,7 @@ FC.Synth = (function () {
         const a = new Audio('assets/audio/combat.mp3'); a.loop = true; a.volume = 0;
         this._music = a; this._musicVol = 0;
       }
-      const target = intensity * 0.32;
+      const target = intensity * 0.32 * FC.Settings.get().music * FC.Settings.get().master;
       this._musicVol += (target - this._musicVol) * 0.02;
       if (this._musicVol > 0.005 && this._music.paused) this._music.play().catch(() => {});
       if (this._musicVol < 0.004 && !this._music.paused) this._music.pause();

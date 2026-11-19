@@ -31,7 +31,7 @@ FC.HUD = (function () {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.save();
     ctx.beginPath(); ctx.rect(rect.x, rect.y, rect.w, rect.h); ctx.clip();
-    const s = Math.min(1.25, Math.max(0.7, Math.min(rect.w, rect.h) / 620));
+    const s = Math.min(1.25, Math.max(0.7, Math.min(rect.w, rect.h) / 620)) * FC.Settings.get().subs;
     const cx = rect.x + rect.w / 2, cy = rect.y + rect.h / 2;
     if (p.menu) { drawMenu(G, p, rect, s); ctx.restore(); return; }
     const w = FC.WEAPONS[p.weapon];
@@ -67,7 +67,7 @@ FC.HUD = (function () {
       if (!e.tagged) continue;
       const sp = project(p, e.headPos.add(v3.set(0, 0.5, 0)), rect);
       if (!sp) continue;
-      const col = e.alerted ? '#ff3b30' : e.state === 'patrol' ? '#ffd166' : '#ff9f43';
+      const col = e.alerted ? FC.Settings.enemyColor(true) : e.state === 'patrol' ? '#ffd166' : '#ff9f43';
       diamond(sp.x, sp.y, 6 * s, col);
       const d = e.pos.distanceTo(p.pos);
       if (d > 15) text(`${Math.round(d)}`, sp.x, sp.y - 9 * s, 10 * s, col, 'center', 600);
@@ -113,6 +113,16 @@ FC.HUD = (function () {
     }
 
     if (scoped) drawScope(rect, cx, cy, s);
+    if (p.binocs) {
+      const r2 = Math.min(rect.w, rect.h) * 0.3;
+      ctx.save(); ctx.fillStyle = '#000';
+      ctx.beginPath(); ctx.rect(rect.x, rect.y, rect.w, rect.h);
+      ctx.moveTo(cx - r2 * 0.55 + r2, cy); ctx.arc(cx - r2 * 0.55, cy, r2, 0, Math.PI * 2, true);
+      ctx.moveTo(cx + r2 * 0.55 + r2, cy); ctx.arc(cx + r2 * 0.55, cy, r2, 0, Math.PI * 2, true);
+      ctx.fill('evenodd'); ctx.restore();
+      text('BINOCULARS — hold to scan, enemies under the reticle get tagged', cx, rect.y + rect.h - 40 * s, 12 * s, '#ddd', 'center', 600);
+      ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx - 20, cy); ctx.lineTo(cx + 20, cy); ctx.moveTo(cx, cy - 20); ctx.lineTo(cx, cy + 20); ctx.stroke();
+    }
 
     // ---------------- detection meters
     for (const e of G.enemies) {
@@ -207,9 +217,16 @@ FC.HUD = (function () {
     if (p.vehicle && p.seat === 0) {
       const v = p.vehicle;
       text(`${Math.round(Math.abs(v.speed) * 3.6)} km/h`, ax, by - 10 * s, 24 * s, '#fff', 'right');
+      if (v.air) text(`ALT ${Math.round(v.pos.y - Math.max(0, FC.World.heightAt(v.pos.x, v.pos.z)))} m · [jump] climb · [crouch] descend`, ax, by - 70 * s, 10 * s, '#9be7e1', 'right', 600);
       panel(ax - 140 * s, by - 46 * s, 140 * s, 8 * s, 0.5);
       ctx.fillStyle = v.hp < v.maxHp * 0.35 ? '#ff5a4f' : '#ffd166'; ctx.fillRect(ax - 140 * s, by - 46 * s, 140 * s * (v.hp / v.maxHp), 8 * s);
       text(`[${p.ctrl.labels.interact}] exit · [${p.ctrl.labels.tag}] horn`, ax, by - 56 * s, 10 * s, '#bbb', 'right', 600);
+    } else if (p.vehicle && p.seat === 1 && p.vehicle.turret) {
+      const v = p.vehicle;
+      text('MOUNTED LMG', ax, by - 30 * s, 12 * s, '#ddd', 'right', 600);
+      panel(ax - 140 * s, by - 18 * s, 140 * s, 8 * s, 0.5);
+      ctx.fillStyle = v.overheated ? '#ff3b30' : '#ffb35c'; ctx.fillRect(ax - 140 * s, by - 18 * s, 140 * s * Math.min(1, v.heat), 8 * s);
+      if (v.overheated) text('OVERHEATED', ax, by - 40 * s, 11 * s, '#ff3b30', 'right');
     } else {
       const am = p.ammo[p.weapon];
       text(w.name.toUpperCase(), ax, by - 30 * s, 12 * s, '#ddd', 'right', 600);
@@ -281,6 +298,7 @@ FC.HUD = (function () {
     });
 
     drawMinimap(G, p, rect, s);
+    if (FC.Settings.get().showFps && G.fps) text(`${Math.round(G.fps)} fps`, rect.x + rect.w - 16 * s, rect.y + rect.h - 100 * s, 11 * s, '#9be7a1', 'right', 600);
 
     if (p.state === 'downed') {
       text('DOWNED', cx, cy - 20 * s, 30 * s, '#ff6b6b', 'center');
@@ -409,7 +427,7 @@ FC.HUD = (function () {
       name: k.name + (k.cost > 1 ? ` (${k.cost} pts)` : ''), desc: k.desc, state: p.has(k.id) ? 'LEARNED' : k.req && !p.has(k.req) ? 'LOCKED' : '', ok: !p.has(k.id),
     })), `[${L.confirm}] learn`);
     if (p.menu === 'shop') return drawList(p, rect, s, `TRADER   ·   CASH $${p.prog.cash}`, FC.SHOP.map((it) => ({
-      name: it.name, desc: `$${it.price}`, state: (it.kind === 'weapon' && it.id !== 'grenade' && p.owned.has(it.id)) || (it.kind === 'companion' && p.companion) ? 'OWNED' : '', ok: p.prog.cash >= it.price,
+      name: it.name, desc: `$${it.price}`, state: (it.kind === 'weapon' && it.id !== 'grenade' && p.owned.has(it.id)) || (it.kind === 'companion' && p.companion) || (it.kind === 'mod' && (p.prog.mods || []).includes(it.id)) ? 'OWNED' : '', ok: p.prog.cash >= it.price,
     })), `[${L.confirm}] buy · [${L.back}] leave`);
   }
   function drawList(p, rect, s, header, rows, hint) {

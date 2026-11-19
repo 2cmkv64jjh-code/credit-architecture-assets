@@ -9,22 +9,25 @@ FC.Features = (function () {
   function init(sc) { scene = sc; }
 
   // ---------------------------------------------------------------- arrows (silent, ballistic)
-  function fireArrow(G, p, draw) {
+  const knifeGeo = new THREE.BoxGeometry(0.03, 0.01, 0.28);
+  const knifeMat = new THREE.MeshStandardMaterial({ color: 0xc8ccd0, metalness: 0.8, roughness: 0.3 });
+  function fireArrow(G, p, draw, opts) {
+    const knife = opts && opts.knife;
     const o = p.cam.getWorldPosition(new THREE.Vector3());
     const d = p.forward();
     const spread = FC.lerp(0.012, 0.002, p.aimT) * (1.2 - draw);
     d.x += FC.rand(-spread, spread); d.y += FC.rand(-spread, spread); d.normalize();
-    const mesh = new THREE.Mesh(arrowGeo, arrowMat);
+    const mesh = new THREE.Mesh(knife ? knifeGeo : arrowGeo, knife ? knifeMat : arrowMat);
     mesh.position.copy(o);
     scene.add(mesh);
-    G.arrows.push({ pos: o.clone().addScaledVector(d, 0.5), vel: d.multiplyScalar(38 + 62 * draw), owner: p, draw, mesh, t: 0, stuck: false });
+    G.arrows.push({ pos: o.clone().addScaledVector(d, 0.5), vel: d.multiplyScalar(knife ? 34 : 38 + 62 * draw), owner: p, draw, mesh, t: 0, stuck: false, knife });
   }
   function updateArrows(dt, G) {
     for (let i = G.arrows.length - 1; i >= 0; i--) {
       const a = G.arrows[i];
       a.t += dt;
       if (a.stuck) { if (a.t > 25) { scene.remove(a.mesh); G.arrows.splice(i, 1); } continue; }
-      a.vel.y -= 9.8 * dt;
+      a.vel.y -= (a.knife ? 5 : 9.8) * dt;
       const step = a.vel.length() * dt;
       const dir = v1.copy(a.vel).normalize();
       // entities along this step
@@ -45,7 +48,7 @@ FC.Features = (function () {
       }
       const world = FC.World.raycast(a.pos.x, a.pos.y, a.pos.z, dir.x, dir.y, dir.z, step);
       if (hit && best <= world.t) {
-        const dmg = (55 + 95 * a.draw) * (head ? 3 : 1);
+        const dmg = a.knife ? (head ? 400 : 170) : (55 + 95 * a.draw) * (head ? 3 : 1);
         const was = hit.alive;
         hit.damage(G, dmg, a.owner, head);
         FC.FX.impact(a.pos.x + dir.x * best, a.pos.y + dir.y * best, a.pos.z + dir.z * best, 'blood');
@@ -54,7 +57,7 @@ FC.Features = (function () {
         else FC.Audio.hit();
         // the victim notices (if alive), nobody else hears the bow
         scene.remove(a.mesh); G.arrows.splice(i, 1);
-        if (Math.random() < 0.5) dropArrow(G, hit.pos);
+        if (a.knife || Math.random() < 0.5) dropArrow(G, hit.pos, a.knife);
         continue;
       }
       if (world.t <= step || a.t > 6) {
@@ -62,6 +65,7 @@ FC.Features = (function () {
         a.pos.addScaledVector(dir, tt);
         a.stuck = true; a.t = 0;
         a.mesh.position.copy(a.pos);
+        if (a.knife) { scene.remove(a.mesh); G.arrows.splice(i, 1); dropArrow(G, a.pos, true); continue; }
         FC.Audio.impact(a.pos);
         G.noise(a.pos, 7, a.owner); // a thunk nearby makes guards curious, not alarmed
         continue;
@@ -71,12 +75,12 @@ FC.Features = (function () {
       a.mesh.lookAt(v2.copy(a.pos).add(dir));
     }
   }
-  function dropArrow(G, pos) {
-    const m = new THREE.Mesh(arrowGeo, arrowMat);
+  function dropArrow(G, pos, knife) {
+    const m = new THREE.Mesh(knife ? knifeGeo : arrowGeo, knife ? knifeMat : arrowMat);
     m.position.set(pos.x + FC.rand(-0.5, 0.5), pos.y + 0.2, pos.z + FC.rand(-0.5, 0.5));
     m.rotation.y = Math.random() * 6;
     scene.add(m);
-    G.pickups.push({ kind: 'arrow', mesh: m, pos: m.position, t: 120, value: 0 });
+    G.pickups.push({ kind: knife ? 'knife' : 'arrow', mesh: m, pos: m.position, t: 120, value: 0 });
   }
 
   // ---------------------------------------------------------------- rebel garrison
