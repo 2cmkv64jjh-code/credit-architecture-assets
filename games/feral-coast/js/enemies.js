@@ -136,7 +136,7 @@ FC.Enemy = class {
     if (this.allyT <= 0) {
       this.allyT = 0.4; this.allyTarget = null;
       let ad = 65;
-      for (const a of G.allies) {
+      for (const a of G.allies.concat(FC.Expansion.companions)) {
         if (!a.alive) continue;
         const d = this.pos.distanceTo(a.pos);
         if (d < ad && FC.World.los(this.pos.x, this.pos.y + 1.6, this.pos.z, a.pos.x, a.pos.y + 1.4, a.pos.z)) { ad = d; this.allyTarget = a; }
@@ -445,7 +445,7 @@ FC.Animal = class {
       else {
         tx = t.pos.x; tz = t.pos.z; speed = 8.5;
         if (t.pos.distanceTo(this.pos) < 1.6) {
-          if (t instanceof FC.Player) t.damage(12 * G.enemyDmgMul, this.pos.x, this.pos.z, G);
+          if (t instanceof FC.Player) t.damage((this.alpha ? 24 : 12) * G.enemyDmgMul, this.pos.x, this.pos.z, G);
           else t.damage(G, 30, null);
           this.state = 'flee'; this.stateT = 0; this.cool = 3;
           this.fleeTo = { x: this.pos.x + (this.pos.x - t.pos.x) * 4, z: this.pos.z + (this.pos.z - t.pos.z) * 4 };
@@ -510,6 +510,12 @@ FC.Civilian = class {
     r.root.visible = true;
     this.stateT += dt;
     let speed = 0;
+    if (this.captive) {
+      r.play('Man_Sitting');
+      this.pos.y = FC.World.groundAt(this.pos.x, this.pos.z, this.pos.y + 0.3, 0.35);
+      r.root.position.copy(this.pos); r.root.rotation.set(0, this.yaw, 0); r.update(dt, nearest);
+      return;
+    }
     if (this.state === 'cheer') { r.play('Man_Clapping'); if (this.stateT > 6) this.state = 'wander'; }
     else {
       if (this.state === 'flee' && this.stateT > 8) this.state = 'wander';

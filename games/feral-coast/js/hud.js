@@ -79,6 +79,23 @@ FC.HUD = (function () {
       ctx.strokeStyle = ping.color; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sp.x, sp.y, 7 * s, 0, 7); ctx.stroke();
       text(`${Math.round(ping.pos.distanceTo(p.pos))}m`, sp.x, sp.y - 11 * s, 10 * s, ping.color, 'center');
     }
+    for (const z of FC.Expansion.ziplines) {
+      const d = Math.hypot(z.A.x - p.pos.x, z.A.z - p.pos.z);
+      if (d > 45 || p.zip) continue;
+      const sp = project(p, z.A, rect);
+      if (sp) text('⇘ zipline', sp.x, sp.y - 4, 10 * s, '#9be7e1', 'center', 600);
+    }
+    for (const q of G.players) {
+      const cp = q.companion;
+      if (!cp || cp.pos.distanceTo(p.pos) > 120) continue;
+      const sp = project(p, v3.set(cp.pos.x, cp.pos.y + 1.6, cp.pos.z).clone(), rect);
+      if (sp) text(cp.alive ? cp.name : `${cp.name} (hurt)`, sp.x, sp.y, 10 * s, cp.alive ? '#d8c8a0' : '#ff8a80', 'center', 600);
+    }
+    for (const pr of FC.Expansion.prisoners) {
+      if (!pr.alive || !pr.captive || pr.pos.distanceTo(p.pos) > 80) continue;
+      const sp = project(p, v3.set(pr.pos.x, pr.pos.y + 1.8, pr.pos.z).clone(), rect);
+      if (sp) text('✋ prisoner', sp.x, sp.y, 10 * s, '#ffd166', 'center', 600);
+    }
     for (const c of G.collectibles) {
       if (c.taken || Math.hypot(c.x - p.pos.x, c.z - p.pos.z) > 40) continue;
       const sp = project(p, v3.set(c.x, c.y + 1.4, c.z).clone(), rect);
@@ -392,7 +409,7 @@ FC.HUD = (function () {
       name: k.name + (k.cost > 1 ? ` (${k.cost} pts)` : ''), desc: k.desc, state: p.has(k.id) ? 'LEARNED' : k.req && !p.has(k.req) ? 'LOCKED' : '', ok: !p.has(k.id),
     })), `[${L.confirm}] learn`);
     if (p.menu === 'shop') return drawList(p, rect, s, `TRADER   ·   CASH $${p.prog.cash}`, FC.SHOP.map((it) => ({
-      name: it.name, desc: `$${it.price}`, state: it.kind === 'weapon' && it.id !== 'grenade' && p.owned.has(it.id) ? 'OWNED' : '', ok: p.prog.cash >= it.price,
+      name: it.name, desc: `$${it.price}`, state: (it.kind === 'weapon' && it.id !== 'grenade' && p.owned.has(it.id)) || (it.kind === 'companion' && p.companion) ? 'OWNED' : '', ok: p.prog.cash >= it.price,
     })), `[${L.confirm}] buy · [${L.back}] leave`);
   }
   function drawList(p, rect, s, header, rows, hint) {

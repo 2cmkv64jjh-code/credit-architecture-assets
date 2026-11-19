@@ -38,7 +38,7 @@
     await step('Unpacking models…', () => FC.Assets.load((k) => { bar.style.width = Math.round(k * 55) + '%'; }));
     await step('Raising Isla Brava…', () => { FC.World.build(scene); bar.style.width = '75%'; });
     await step('Planting the jungle…', () => { FC.Env.init(scene, G.quality); FC.Foliage.build(scene); FC.FX.init(scene); FC.Features.init(scene); bar.style.width = '90%'; });
-    await step('Waking the island…', () => { populate(); bar.style.width = '100%'; });
+    await step('Waking the island…', () => { populate(); FC.Expansion.init(scene, G); bar.style.width = '100%'; });
     G.state = 'title';
     $('loading').classList.add('hidden');
     $('menu').classList.remove('hidden');
@@ -150,7 +150,7 @@
   G.togglePause = () => { if (G.state === 'playing') setPaused(true); else if (G.state === 'paused') setPaused(false); };
   G.anyAlerted = () => G.enemies.some((e) => e.alive && e.alerted && !e.dormant && G.nearestPlayerDist(e.pos) < 150);
   G.vehicleNear = (p) => {
-    for (const v of G.vehicles) if (!v.dead && (v.seats[0] === null || v.seats[1] === null) && !v.convoy && p.pos.distanceTo(v.pos) < v.len * 0.5 + 1.6) return v;
+    for (const v of G.vehicles) if (!v.dead && !v.patrol && (v.seats[0] === null || v.seats[1] === null) && !v.convoy && p.pos.distanceTo(v.pos) < v.len * 0.5 + 1.6) return v;
     return null;
   };
   G.startPoi = () => FC.World.start;
@@ -218,6 +218,7 @@
     op.alarmTriggered = true;
     FC.Audio.siren(Math.max(0.25, G.volumeAt(new THREE.Vector3(op.x, op.y, op.z), 400)));
     G.announce(`ALARM at ${op.name}! Reinforcements inbound`, '#ff6b6b', 5);
+    if (FC.Expansion.reinforce(G, op)) return;
     setTimeout(() => {
       if (op.liberated || G.state === 'title') return;
       const n = op.boss ? 6 : 4;
@@ -403,6 +404,7 @@
     }
     if (best) {
       if (!best.tagged) { best.tagged = true; p.stats.tags++; FC.Progression.xp(p, 2, null, G); }
+      if (p.companion) p.companion.command(best);
       FC.Audio.ui();
       p.msg(`Tagged ${best.type === 'boss' ? 'Commander Vael' : best.type}`, '#ffd166', 1.5);
       return;
@@ -628,6 +630,7 @@
     for (const c of G.convoys) c.update(dt, G);
     if (G.convoyRespawn !== undefined) { G.convoyRespawn -= dt; if (G.convoyRespawn <= 0) { G.convoyRespawn = undefined; if (G.convoys.filter((c) => !c.done).length < 2) spawnConvoy(); } }
     FC.Features.update(dt, G);
+    FC.Expansion.update(dt, G);
     // rain around each camera
     // fog-of-war around players
     for (const p of G.players) G.revealAround(p.pos.x, p.pos.z, 90);
@@ -816,10 +819,15 @@
       p.prog = d.prog; p.owned = new Set(d.owned); p.owned.add('bow'); p.medkits = d.medkits;
       for (const k in d.ammo) if (p.ammo[k]) Object.assign(p.ammo[k], d.ammo[k]);
       if (d.stats) p.stats = d.stats;
+      if (p.prog.companion) { p.prog.companion = false; FC.Expansion.giveCompanion(p); }
       p.maxHp = 100 + (p.has('tough1') ? 25 : 0) + (p.has('tough2') ? 25 : 0); p.hp = p.maxHp;
     });
-    FC.Missions.index = s.mission || 0;
-    FC.Missions.current = FC.Missions.list[FC.Missions.index] || null;
+    let mi = typeof s.mission === 'string' ? FC.Missions.list.findIndex((m) => m.id === s.mission) : (s.mission || 0);
+    if (s.mission === 'done') mi = FC.Missions.list.length;
+    if (mi < 0) mi = 0;
+    FC.Missions.index = mi;
+    FC.Missions.current = FC.Missions.list[mi] || null;
+    Object.assign(G.flags, s.flags || {});
     G.announce('Welcome back to Isla Brava', '#ffd9a0', 4);
   }
   function setPaused(on) {
@@ -842,7 +850,8 @@
   // ===================================================================== main loop
   let last = performance.now();
   function frame(now) {
-    const dt = Math.min(0.05, (now - last) / 1000);
+    let dt = Math.min(0.05, (now - last) / 1000);
+    if (G.slowT > 0) { G.slowT -= dt; dt *= 0.35; }
     last = now;
     FC.Input.update();
     if (G.state === 'title') {

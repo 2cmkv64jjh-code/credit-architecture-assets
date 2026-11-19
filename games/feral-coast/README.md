@@ -69,6 +69,15 @@ Driving: forward/back is throttle, left/right steers, jump is the handbrake and 
   - Weapons: suppressed pistol, silent recurve bow, carbine, shotgun, scoped marksman rifle, molotovs and frag grenades.
   - The bow: hold fire to draw and release to shoot. Arrows drop with distance, kill silently and can be picked up again.
   - Militia grunts lob grenades to flush you out of cover. A warning marker shows where they land.
+- **Water:** six speedboats docked around the coast (camp, Saltmarsh Dock, Old Cannery, Black Pier, Palmhaven, Tidewater).
+  - The driver steers and the passenger shoots.
+  - A militia gunboat patrols the coast with two gunners.
+- **Ziplines:** cables run from every relay tower down to nearby outposts and villages. Interact at the platform edge to ride, shoot while sliding, and jump off mid-ride to open the glider.
+- **Alarm reinforcements:** a tripped alarm sends militia trucks racing in along the roads. The soldiers jump out when they arrive or spot you, and you can ambush the trucks on the way.
+- **Wolf companion:** Fang (Ash for player 2) comes from the "Wolf at the Door" mission or the trader for $350.
+  - Tagging an enemy sends the wolf after them, and unaware guards die silently.
+  - It defends you when you're shot at, and recovers 30 seconds after being downed.
+- **Set pieces:** the black alpha wolf, a prisoner rescue at Sulfur Springs, the sea raid, the Black Pier fuel-depot inferno (with slow motion) and Vael's last stand (radio taunts, trucks, and a slow-motion finale).
 - **Traversal:** a hang glider. Jump again while falling from a relay tower, ridge or cliff, then look to steer.
 - **Rebel garrisons:** three resistance fighters hold every outpost you free and fight any militia they see.
 - **Counter-attacks:** every 6–9 minutes the Tide may try to retake a freed outpost near you. Defend it for XP and cash.
@@ -117,6 +126,8 @@ Driving: forward/back is throttle, left/right steers, jump is the handbrake and 
 | `js/progression.js` | XP, skills, cash, trader, map/skills menus, save games |
 | `js/missions.js` | Story missions and radio dialogue |
 | `js/sfx.js` | Sound facade over plinkfx: positional one-shots, loops, ambience (synth fallback in `js/audio.js`) |
+| `js/features.js` | Bow arrows, rebel garrisons, counter-attacks, enemy grenades |
+| `js/expansion.js` | Ziplines, boats, patrol boat, reinforcement trucks, wolf companion, story set pieces |
 | `js/hud.js` | Per-viewport HUD, compass, minimap, menus |
 | `js/render.js` | Post-processing per viewport, quality presets |
 | `js/main.js` | Game rules, combat, world systems, flow, render loop |

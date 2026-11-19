@@ -229,6 +229,7 @@ FC.Player = class {
     if (!(c.sprint || this.sprintToggle) || c.my <= 0.3 || c.aim) this.sprint = false;
 
     if (this.climbing) { this.updateClimb(dt, c); this.updateCamera(dt, G); this.updateBody(dt, G); return; }
+    if (this.zip) { FC.Expansion.rideZip(this, c, dt); this.updateWeapons(dt, c, G); this.updateCamera(dt, G); this.updateBody(dt, G); return; }
 
     this.updateWeapons(dt, c, G);
     this.updateInteract(dt, c, G);
@@ -390,6 +391,7 @@ FC.Player = class {
       } else partner.reviveProgress = Math.max(0, partner.reviveProgress - dt);
       return;
     }
+    if (FC.Expansion.interact(this, c, G)) return;
     const e = G.takedownTarget(this);
     if (e) {
       this.prompt = `[${L.interact}] Takedown`;
@@ -493,7 +495,7 @@ FC.Player = class {
       r.root.rotation.set(0, this.yaw, 0);
       if (this.state !== 'alive') { /* death clip already playing */ }
       else if (this.climbing) r.play('Run', { speed: 0.5 });
-      else if (this.gliding) r.play('Idle_Neutral');
+      else if (this.gliding || this.zip) r.play('Idle_Neutral');
       else if (this.swimming) r.play('Run', { speed: 0.4 });
       else {
         const sp = this.speed, shooting = (this.firedT || 0) > 0;

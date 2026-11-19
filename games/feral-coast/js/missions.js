@@ -24,9 +24,34 @@ FC.Missions = (function () {
       target: (G) => G.nearestConvoy(), done: (G) => G.flags.convoys > 0,
     },
     {
+      id: 'zip', title: 'Rope Run', text: 'Ride a zipline down from any relay tower',
+      start: [[TEO, 'The old crews strung cables off every spire. Fastest way down the mountain — try one.']],
+      target: () => FC.World.towers[0], done: (G) => !!G.flags.ziplined,
+    },
+    {
+      id: 'alpha', title: 'Wolf at the Door', text: 'Hunt the black alpha wolf near Cloudrest',
+      start: [[AMA, 'A black alpha has been dragging off Cloudrest\'s goats — and their kids are next.'], [AMA, 'It is huge and it does not run. Bring a lot of bullets, or a bow and patience.']],
+      target: () => (FC.Expansion.alpha && FC.Expansion.alpha.alive ? FC.Expansion.alpha.pos : FC.World.villages[2]), done: (G) => !!G.flags.alpha,
+    },
+    {
       id: 'spread', title: 'Spread the Fire', text: 'Liberate 4 outposts',
       start: [[AMA, 'Every flag you raise brings more people to our side. Keep going.']],
       target: (G) => G.nearestHeld(), done: () => FC.World.outposts.filter((o) => o.liberated).length >= 4,
+    },
+    {
+      id: 'rescue', title: 'Open the Cages', text: 'Free the prisoners held at Sulfur Springs',
+      start: [[TEO, 'Sulfur Springs is holding three of our people in a pen by the barracks.'], [AMA, 'Get them out alive. Quietly, if you can.']],
+      target: () => { const p = FC.Expansion.prisoners.find((c) => c.captive && c.alive); return p ? p.pos : FC.World.outposts[6]; }, done: (G) => !!G.flags.prisoners,
+    },
+    {
+      id: 'sea', title: 'Sea Raid', text: 'Take a boat and sink the Tide patrol boat',
+      start: [[TEO, 'The Tide runs a gunboat around the coast. There are speedboats at the docks — grab one.'], [TEO, 'Driver steers, passenger shoots. Or ram it with a molotov in hand.']],
+      target: () => (FC.Expansion.patrolBoat && !FC.Expansion.patrolBoat.dead ? FC.Expansion.patrolBoat.pos : null), done: (G) => !!G.flags.patrolBoat,
+    },
+    {
+      id: 'depot', title: 'Burn the Fuel', text: 'Blow up the fuel depot at Black Pier',
+      start: [[AMA, 'Black Pier stores the fuel for every truck on the island. Light it up and the Tide walks.']],
+      target: () => FC.World.outposts[7], done: (G) => !!G.flags.depot,
     },
     {
       id: 'ridge', title: 'Break the Ridge', text: 'Liberate Ridge Battery',

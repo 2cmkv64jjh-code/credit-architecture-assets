@@ -20,6 +20,7 @@ FC.SHOP = [
   { id: 'ammo', name: 'Full ammo refill', price: 40, kind: 'ammo' },
   { id: 'throw', name: '+2 molotovs / grenades', price: 90, kind: 'throw' },
   { id: 'med', name: 'Medkit', price: 60, kind: 'med' },
+  { id: 'companion', name: 'Wolf companion (Fang)', price: 350, kind: 'companion' },
 ];
 
 FC.Progression = (function () {
@@ -54,7 +55,7 @@ FC.Progression = (function () {
         v: 2, time: G.time, hour: FC.Env.hour,
         outposts: FC.World.outposts.map((o) => o.liberated), towers: FC.World.towers.map((t) => t.hacked),
         collectibles: G.collectibles.map((c) => c.taken), reveal: Array.from(G.reveal),
-        mission: FC.Missions.index,
+        mission: FC.Missions.current ? FC.Missions.current.id : 'done', flags: G.flags,
         players: G.players.map((p) => ({ prog: p.prog, owned: Array.from(p.owned), ammo: p.ammo, medkits: p.medkits, stats: p.stats })),
       };
       localStorage.setItem(KEY, JSON.stringify(data));
@@ -125,6 +126,7 @@ FC.Menus = (function () {
     } else if (item.kind === 'throw') {
       for (const k of ['molotov', 'grenade']) if (p.owned.has(k)) p.ammo[k].mag = Math.min(FC.Progression.maxThrow(p, k), p.ammo[k].mag + 2);
     } else if (item.kind === 'med') p.medkits = Math.min(5, p.medkits + 1);
+    else if (item.kind === 'companion') { if (p.companion) { p.msg('Already running with you', '#aaa', 1.5); FC.Progression.cash(p, item.price, null, G); return; } FC.Expansion.giveCompanion(p); }
     FC.Audio.pickup();
     FC.Progression.save(G);
   }
