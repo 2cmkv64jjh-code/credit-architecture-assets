@@ -366,7 +366,7 @@ FC.Player = class {
     for (const s of G.shopPoints()) {
       if (Math.hypot(s.x - this.pos.x, s.z - this.pos.z) < 2.6) {
         this.prompt = `[${L.interact}] Trade & resupply`;
-        if (c.pressed.interact) { this.menu = 'shop'; FC.Menus.open(this); FC.Audio.ui(); }
+        if (c.pressed.interact) { this.menu = 'shop'; G.flags.shopped = true; FC.Menus.open(this); FC.Audio.ui(); }
         return;
       }
     }

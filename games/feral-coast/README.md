@@ -1,25 +1,23 @@
 # Feral Coast
 
-A split-screen, local co-op, open-island shooter for the browser. Two rebels, **Rook** and **Wren**, land on Isla Brava. Their job is to free it from the **Ashen Tide** militia and its leader, Commander Vael, one outpost at a time.
+A split-screen, local co-op, open-world shooter for the browser. Two rebels, **Rook** and **Wren**, land on Isla Brava. Their job is to free it from the **Ashen Tide** militia and its leader, Commander Vael.
 
-It's an original game built on the open-world FPS formula: outposts, stealth, alarms, fire, wildlife. All names, characters, art and audio are new. Everything is procedural or synthesized, and there are no third-party game assets.
+It's an original game built on the open-world FPS formula: outposts, stealth, alarms, radio towers, fire, wildlife, convoys and progression. The setting, story, characters and code are new. The 3D models and textures are free CC0 art packs (see [Credits](#credits)). Sound effects are synthesized in code.
 
 ## Run it
 
-Open `index.html` in a desktop browser (Chrome, Edge or Firefox). No build step and no server are needed, because three.js is vendored in `vendor/`.
+Open `index.html` in a desktop browser (Chrome, Edge or Firefox). It works straight from disk, with no build step or server, because everything is bundled in `vendor/` and `assets/`. A dedicated GPU is recommended. Use **Graphics: Medium / Low** on the title or pause screen on laptops, or for split screen on modest hardware.
 
-If you'd rather serve it locally: `npx serve games/feral-coast` or `python3 -m http.server -d games/feral-coast`.
+Progress autosaves in the browser (localStorage), so **Continue** picks up where you left off.
 
-## Joining (title screen)
+## Joining
 
 | Slot | How to join |
 |---|---|
 | Player 1 | Click (keyboard + mouse) **or** press **A** on a gamepad |
 | Player 2 | Press **Enter** (right side of the keyboard) **or** press **A** on another gamepad |
 
-Press **Space** / **Start** to deploy. With one player joined you get a full-screen solo game; with two you get a split screen. You can choose side-by-side or top/bottom on the title screen or in the pause menu.
-
-Two gamepads work best. One keyboard + mouse player and one gamepad is next best. Two players on a single keyboard works, but it's cramped.
+Choose **New Game** or **Continue**. One player gets a full-screen game; two players get a split screen (side-by-side or top/bottom).
 
 ## Controls
 
@@ -28,38 +26,81 @@ Two gamepads work best. One keyboard + mouse player and one gamepad is next best
 | Move / look | WASD / Mouse | IJKL / Arrows | L-Stick / R-Stick |
 | Fire / aim | LMB / RMB | Enter / Right Shift | RT / LT |
 | Sprint / crouch / jump | Shift / C / Space | M / N / H | L3 / B / A |
-| Weapons / reload | 1 2 3, wheel / R | P / O | Y / X |
-| Takedown · revive · use | E | U | RB |
-| Tag enemy / ping spot | Q | Y | LB |
+| Weapons / reload | 1–6, wheel / R | P / O | Y / X |
+| Takedown · revive · use · drive | E | U | RB |
+| Tag enemy / ping spot (horn while driving) | Q | Y | LB |
 | Medkit | F | 9 | D-pad Up |
+| Map & skills (tab switches) | M | . | Back |
 | Pause | Esc | Backspace | Start |
 
-## How the formula was broken down and rebuilt
+Driving: forward/back is throttle, left/right steers, jump is the handbrake and sprint boosts. In the map, move the cursor and confirm to set a waypoint. Confirming on a liberated outpost, a freed village or the camp fast-travels there.
 
-| Pillar of the genre | How Feral Coast does it |
-|---|---|
-| **Outpost liberation** as the core loop | 5 outposts held by the militia. Clear every guard (including reinforcements) and the flag turns rebel green. The outpost then becomes a respawn point and a resupply crate. |
-| **Stealth with readable detection** | Each guard has a view cone and line of sight against terrain and buildings. A per-player detection meter around your crosshair goes white, then amber, then red. Crouching and bushes slow it down; sprinting speeds it up. |
-| **Alarms and escalation** | When a guard spots you, a runner heads for the yellow alarm box. If it goes off, a siren plays and reinforcements arrive. You can sabotage the box first to keep the outpost isolated. |
-| **Tagging / recon** | Tag guards to keep them marked through walls and on the minimap. Tags are shared, so your partner sees them too. Tag the ground to drop a ping. |
-| **Silent takedowns** | Get close to an unaware guard, or behind an alert one, for a one-button silent kill. Heavies can only be taken from behind. Guards that find bodies start searching. |
-| **Loud vs. quiet loadout** | AR-7 rifle (loud, alerts everything within ~75 m), Whisper suppressed pistol (headshots kill in one hit), and molotovs. |
-| **Systemic fire** | Molotovs and exploding barrels start fires. Fire spreads from bush to bush, sets guards burning and cooks off nearby barrels. |
-| **Hostile wildlife** | Boars roam the island and charge whoever is closest, militia included. |
-| **Enemy chatter** | Guard barks ("Did you hear that?", "Sound the alarm!") tell you their state. |
-| **Co-op specific** | Downed state with a 30-second bleed-out and hold-to-revive. A squad wipe redeploys both players at the nearest safe point. Tags, pings and partner markers are shared. |
-| **Boss stronghold** | Vael's Roost is a walled fortress with towers, two heavies and Commander Vael. Vael has frontal armour, so flank him. |
+## What's in it
 
-A run ends when all five outposts are free. The victory screen shows each player's stats: kills, headshots, takedowns, tags and revives.
+- **Open island, about 1.6 × 1.6 km.**
+  - Procedural terrain with beaches, jungle, a central mountain ridge and a road network.
+  - 10 outposts, including Vael's walled fortress.
+  - 4 villages, 3 climbable radio relays, the rebel camp and 14 hidden Tide Ledgers.
+- **Living world.**
+  - Militia patrols walk the roads.
+  - Supply convoy trucks carry guards.
+  - Deer and stags graze and flee.
+  - Wolf packs hunt anyone, militia included.
+  - Villagers flee gunfire and cheer when their outpost falls.
+- **Stealth and AI.**
+  - Each guard has a view cone and line of sight.
+  - Detection meters show who is noticing you.
+  - Crouching in bushes hides you, and night and rain cut how far guards see.
+  - Guards who find bodies start searching.
+  - Alarm runners call reinforcements unless you cut the box first.
+  - Snipers on watchtowers give away their position with a red glint.
+- **Combat.**
+  - Weapons: suppressed pistol, carbine, shotgun, scoped marksman rifle, molotovs and frag grenades.
+  - Silent takedowns, including chain takedowns.
+  - Exploding barrels.
+  - Fire that spreads through brush.
+- **Co-op.**
+  - Split screen with independent HUDs and menus.
+  - Shared tags and pings.
+  - A downed state with hold-to-revive.
+  - Driver plus a passenger who can shoot.
+  - Squad redeploy.
+- **Progression.**
+  - XP and levels.
+  - An 11-skill tree: health, stealth, recoil, reload, medic, chain takedown, heavy hitter, ammo capacity, fire resistance, hunting.
+  - Cash from loot, pelts, ledgers and bounties.
+  - Traders at the camp, liberated outposts and freed villages.
+- **Story missions** with radio dialogue from the resistance, leading up to the assault on Vael's Roost.
+- **Rendering** (three.js):
+  - A physical sky with a full day/night cycle (about 20 minutes per day), stars and weather.
+  - Real-time sun shadows.
+  - A shoreline-aware ocean shader with foam and depth tint.
+  - Splat-textured terrain.
+  - Wind-animated trees, bushes and grass.
+  - Animated skinned characters and animals.
+  - Bloom, color grading and damage effects (per viewport).
+  - Quality presets.
 
 ## Code map
 
 | File | Purpose |
 |---|---|
-| `js/world.js` | Island heightmap, foliage instancing, outpost and fortress layout, colliders, raycasts, minimap texture |
-| `js/player.js` | Movement, stances, weapons, viewmodels, revive/downed, interactions |
-| `js/enemies.js` | Militia AI state machine (patrol, suspicious, search, alert, alarm-run), boars |
-| `js/main.js` | Game rules, combat, fire, alarms, pickups, split-screen rendering, title/pause/victory |
-| `js/hud.js` | Per-viewport HUD: detection meters, markers, minimap, prompts |
-| `js/input.js` | Keyboard, mouse (pointer lock) and Gamepad API, with per-player devices |
-| `js/fx.js`, `js/audio.js` | GPU point-sprite particles and tracers, and WebAudio-synthesized sound |
+| `js/world.js` | Heightfield, roads, terrain chunks and their splat shader, outposts, villages, relays, colliders, spatially hashed raycasts, map image |
+| `js/env.js` | Sky, sun and moon, shadows, day/night, fog, weather, ocean shader |
+| `js/foliage.js` | Instanced vegetation in streaming super-chunks, wind shader, recycled grass patches |
+| `js/assets.js` | Decodes the embedded GLB/PNG assets; character rigs with animation crossfades |
+| `js/player.js` | Movement, ladders, vehicles, weapons, viewmodels, interactions |
+| `js/enemies.js` | Militia AI, wildlife, villagers |
+| `js/vehicles.js` | Drivable jeeps, AI convoys |
+| `js/progression.js` | XP, skills, cash, trader, map/skills menus, save games |
+| `js/missions.js` | Story missions and radio dialogue |
+| `js/hud.js` | Per-viewport HUD, compass, minimap, menus |
+| `js/render.js` | Post-processing per viewport, quality presets |
+| `js/main.js` | Game rules, combat, world systems, flow, render loop |
+| `tools/` | Scripts to rebuild `vendor/three.bundle.js` and `assets/assets.js` |
+
+## Credits
+
+- 3D models and textures: **Quaternius**, **Kenney** and **Screaming Brain Studios**, all CC0 1.0 (public domain). They come via the `@netforge/asset-library-files` npm package; see `assets/NOTICE-asset-library.txt` and `assets/CC0-1.0.txt`.
+- Combat music: `assets/audio/combat.mp3`, from the same CC0 library.
+- Engine: [three.js](https://threejs.org) r160 (MIT, see `vendor/THREE_LICENSE`).
