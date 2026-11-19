@@ -38,7 +38,8 @@
     await step('Unpacking models…', () => FC.Assets.load((k) => { bar.style.width = Math.round(k * 55) + '%'; }));
     await step('Raising Isla Brava…', () => { FC.World.build(scene); bar.style.width = '75%'; });
     await step('Planting the jungle…', () => { FC.Env.init(scene, G.quality); FC.Foliage.build(scene); FC.FX.init(scene); FC.Features.init(scene); bar.style.width = '90%'; });
-    await step('Waking the island…', () => { populate(); FC.Expansion.init(scene, G); FC.Living.init(scene, G); bar.style.width = '100%'; });
+    await step('Waking the island…', () => { populate(); FC.Expansion.init(scene, G); FC.Living.init(scene, G); bar.style.width = '96%'; });
+    await step('Building physics…', async () => { FC.Physics.scene = scene; await FC.Physics.init(); bar.style.width = '100%'; });
     G.state = 'title';
     $('loading').classList.add('hidden');
     $('menu').classList.remove('hidden');
@@ -273,7 +274,7 @@
       const sc = e.def.scale || 1, hp = e.headPos;
       let t = FC.raySphere(o.x, o.y, o.z, d.x, d.y, d.z, hp.x, hp.y, hp.z, 0.24 * sc);
       if (t < best) { best = t; hit = e; head = true; }
-      t = FC.rayCyl(o.x, o.y, o.z, d.x, d.y, d.z, e.pos.x, e.pos.z, 0.36 * sc, e.pos.y, e.pos.y + 1.5 * sc);
+      t = FC.rayCyl(o.x, o.y, o.z, d.x, d.y, d.z, e.pos.x, e.pos.z, 0.36 * sc, e.pos.y, e.bodyTop);
       if (t < best) { best = t; hit = e; head = false; }
     }
     for (const a of G.animals) {
@@ -381,6 +382,7 @@
     G.fires.push({ x, y: h + 0.05, z, r, life, t: 0, spreadT: 1, owner });
   }
   G.ignite = (x, z, r, life, owner) => igniteAt(x, z, r, life, owner);
+  const debrisMat = new THREE.MeshStandardMaterial({ color: 0x3a3330, roughness: 1 });
   function explodeBarrel(b, owner) {
     if (b.exploded) return;
     b.exploded = true;
@@ -390,12 +392,13 @@
   }
   G.explosion = (x, y, z, radius, dmg, owner) => {
     FC.FX.explosion(x, y, z);
+    if (FC.Physics.ready) FC.Physics.debris(new THREE.Vector3(x, y, z), 7, debrisMat, 9);
     FC.Audio.explosion(Math.max(0.15, G.volumeAt(new THREE.Vector3(x, y, z), 350)), new THREE.Vector3(x, y, z));
     const pos = new THREE.Vector3(x, y, z);
     for (const e of G.enemies) {
       if (!e.alive) continue;
       const d = e.pos.distanceTo(pos);
-      if (d < radius) { const was = e.alive; e.damage(G, dmg * (1 - d / radius) + 20, owner, false); if (was && !e.alive && owner && owner.index !== undefined) { owner.hitmarker = 0.2; owner.killmarker = 0.3; } }
+      if (d < radius) { const was = e.alive; const away = new THREE.Vector3(e.pos.x - x, 0, e.pos.z - z).normalize(); const k = (1 - d / radius); e.pendingImpulse = { x: away.x * (3 + k * 9), y: 3.5 + k * 6, z: away.z * (3 + k * 9) }; e.damage(G, dmg * (1 - d / radius) + 20, owner, false); if (e.alive) e.pendingImpulse = null; if (was && !e.alive && owner && owner.index !== undefined) { owner.hitmarker = 0.2; owner.killmarker = 0.3; } }
     }
     for (const a of G.animals) if (a.alive && a.pos.distanceTo(pos) < radius) a.damage(G, 200, owner);
     for (const c of G.civilians) if (c.alive && c.pos.distanceTo(pos) < radius * 0.8) c.damage(G, 200, owner);
@@ -666,6 +669,7 @@
     FC.Expansion.update(dt, G);
     FC.Modes.update(dt, G);
     FC.Living.update(dt, G);
+    FC.Physics.update(dt);
     // rain around each camera
     // fog-of-war around players
     for (const p of G.players) G.revealAround(p.pos.x, p.pos.z, 90);

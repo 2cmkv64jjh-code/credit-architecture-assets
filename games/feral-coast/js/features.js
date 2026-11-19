@@ -38,7 +38,7 @@ FC.Features = (function () {
         const sc = e.def.scale || 1, hp = e.headPos;
         let t = FC.raySphere(a.pos.x, a.pos.y, a.pos.z, dir.x, dir.y, dir.z, hp.x, hp.y, hp.z, 0.26 * sc);
         if (t < best) { best = t; hit = e; head = true; }
-        t = FC.rayCyl(a.pos.x, a.pos.y, a.pos.z, dir.x, dir.y, dir.z, e.pos.x, e.pos.z, 0.38 * sc, e.pos.y, e.pos.y + 1.5 * sc);
+        t = FC.rayCyl(a.pos.x, a.pos.y, a.pos.z, dir.x, dir.y, dir.z, e.pos.x, e.pos.z, 0.38 * sc, e.pos.y, e.bodyTop);
         if (t < best) { best = t; hit = e; head = false; }
       }
       for (const an of G.animals) {

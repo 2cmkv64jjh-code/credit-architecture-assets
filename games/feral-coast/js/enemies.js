@@ -44,8 +44,10 @@ FC.Enemy = class {
     this.rig.play('Idle_Gun');
   }
 
-  get headPos() { const s = this.def.scale || 1; return new THREE.Vector3(this.pos.x, this.pos.y + 1.68 * s, this.pos.z); }
-  get chest() { const s = this.def.scale || 1; return new THREE.Vector3(this.pos.x, this.pos.y + 1.25 * s, this.pos.z); }
+  get crouchOff() { return this.crouched ? 0.5 : 0; }
+  get headPos() { const s = this.def.scale || 1; return new THREE.Vector3(this.pos.x, this.pos.y + 1.68 * s - this.crouchOff, this.pos.z); }
+  get chest() { const s = this.def.scale || 1; return new THREE.Vector3(this.pos.x, this.pos.y + 1.25 * s - this.crouchOff, this.pos.z); }
+  get bodyTop() { return this.pos.y + 1.5 * (this.def.scale || 1) - this.crouchOff; }
   get alerted() { return this.state === 'alert' || this.state === 'alarm'; }
 
   bark(G, kind) {
@@ -76,6 +78,12 @@ FC.Enemy = class {
   die(G, attacker, headshot, takedown) {
     this.alive = false; this.deadT = 0; this.hp = 0;
     this.tagged = false; this.burning = 0;
+    FC.AI.release(this);
+    if (this.pendingImpulse && FC.Physics.ready && !this.onTower && this.state !== 'ride') {
+      const it = FC.Physics.throwBody(this.rig.root, this.pos, this.pendingImpulse, 0.3, 1.7 * (this.def.scale || 1), 4.5);
+      if (it) { this.thrown = true; it.onDone = (p) => { this.pos.set(p.x, p.y, p.z); }; }
+    }
+    this.pendingImpulse = null;
     this.rig.play('Death', { once: true, fade: 0.1 });
     this.gun.visible = false;
     if (this.onTower) this.fallFrom = this.pos.y;
@@ -166,6 +174,7 @@ FC.Enemy = class {
   update(dt, G, nearest) {
     if (!this.alive) {
       this.deadT += dt;
+      if (this.thrown) { this.rig.update(dt, nearest); return; }
       if (this.fallFrom !== undefined && this.pos.y > FC.World.heightAt(this.pos.x, this.pos.z)) {
         this.pos.y = Math.max(FC.World.heightAt(this.pos.x, this.pos.z), this.pos.y - dt * 12);
       }
@@ -226,6 +235,7 @@ FC.Enemy = class {
     else if (sp < 0.3) r.play(this.firedT > 0 ? 'Idle_Gun_Shoot' : this.alerted ? 'Idle_Gun_Pointing' : 'Idle_Gun');
     else if (sp < 2.5) r.play('Walk', { speed: sp / 1.6 });
     else r.play(this.firedT > 0 ? 'Run_Shoot' : 'Run', { speed: sp / 5 });
+    r.model.position.y = r.baseY - (this.crouched ? 0.5 : 0);
     r.update(dt, nearest);
     const f = this.flash > 0 ? 0.6 : 0;
     for (const m of r.meshes) {
@@ -323,7 +333,7 @@ FC.Enemy = class {
       this.target = t; this.lastKnown = t.pos.clone(); this.lostT = 0;
       const dx = t.pos.x - this.pos.x, dz = t.pos.z - this.pos.z, d = Math.hypot(dx, dz);
       this.yaw = FC.turnTowards(this.yaw, FC.yawTo(dx, dz), dt * 5);
-      if (!this.onTower) {
+      if (!this.onTower && !FC.AI.combatMove(this, t, dt, G)) {
         const pref = this.type === 'heavy' ? 10 : 22;
         this.strafeT = (this.strafeT || 0) - dt;
         if (this.strafeT <= 0 || !this.strafePt) {
@@ -338,7 +348,7 @@ FC.Enemy = class {
       this.aimT -= dt;
       this.fireT -= dt;
       if (def.sniper) this.glint = this.aimT < 1.2 ? 1 : 0;
-      if (this.aimT <= 0 && this.fireT <= 0 && d < def.range * 1.3) {
+      if (!this.crouched && this.aimT <= 0 && this.fireT <= 0 && d < def.range * 1.3) {
         if (this.burst <= 0) this.burst = Math.round(FC.rand(def.burst[0], def.burst[1]));
         this.shoot(G, t, d);
         this.burst--;
@@ -348,6 +358,8 @@ FC.Enemy = class {
     } else {
       this.glint = 0;
       this.lostT += dt;
+      if (this.inCover && this.lostT < 5) { this.crouched = true; this.speedNow = 0; return; }
+      if (this.inCover) FC.AI.release(this);
       // flush hidden rebels out with a grenade
       this.nadeT = (this.nadeT || FC.rand(4, 10)) - dt;
       if (this.type === 'grunt' && this.lastKnown && this.lostT > 2 && this.lostT < 7 && this.nadeT <= 0 && !this.onTower) {

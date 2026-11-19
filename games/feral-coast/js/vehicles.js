@@ -113,6 +113,7 @@ FC.Vehicle = class {
     const burnt = new THREE.MeshStandardMaterial({ color: 0x1a1816, roughness: 1 });
     this.mesh.traverse((o) => { if (o.isMesh) o.material = Array.isArray(o.material) ? o.material.map(() => burnt) : burnt; });
     if (this.boat) this.sinking = true;
+    else if (!this.air && FC.Physics.ready) FC.Physics.wreck(this, 9);
     this.speed = 0;
     if (this.onDestroyed) this.onDestroyed(G, attacker);
   }
@@ -175,6 +176,8 @@ FC.Vehicle = class {
       for (const e of victims) {
         if (!e.alive || e.state === 'ride') continue;
         if (Math.hypot(e.pos.x - this.pos.x, e.pos.z - this.pos.z) < this.wid * 0.7 + 0.4) {
+          const f = this.forward();
+          e.pendingImpulse = { x: f.x * this.speed * 0.7 + FC.rand(-1, 1), y: 2.5 + Math.abs(this.speed) * 0.18, z: f.z * this.speed * 0.7 + FC.rand(-1, 1) };
           e.damage(G, 400, driver || null, false);
           FC.FX.impact(e.pos.x, e.pos.y + 1, e.pos.z, 'blood');
           this.speed *= 0.85;

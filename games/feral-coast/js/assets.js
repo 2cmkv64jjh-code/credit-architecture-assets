@@ -147,6 +147,7 @@ FC.Rig = class {
     const k = h / m.h;
     this.model.scale.setScalar(k);
     this.model.position.y = -m.minY * k;           // feet on the ground
+    this.baseY = this.model.position.y;
     this.size = { h, len: m.len * k, wid: m.wid * k }; // world-space body dimensions
     this.clips = src.clipMap;
     this.mixer = new THREE.AnimationMixer(this.model);

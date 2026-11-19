@@ -95,7 +95,7 @@ FC.Render = (function () {
   }
 
   return {
-    init, renderView,
+    init, renderView, info: () => renderer.info,
     get quality() { return quality; },
     setQuality(q) {
       quality = q;
