@@ -364,6 +364,7 @@ FC.Expansion = (function () {
       FC.Missions.say('Commander Vael', 'I can see you, little rebels. This island was mine before you were born.');
       FC.Missions.say('Commander Vael', 'Every gun in the Roost is pointed at that road. Come and die.');
       reinforce(Gm, roost);
+      setTimeout(() => callGunship(Gm, roost, true), 20000);
     }
     if (Gm.boss && !Gm.boss.alive && !Gm.flags.vaelDead) {
       Gm.flags.vaelDead = true;
@@ -478,19 +479,152 @@ FC.Expansion = (function () {
       }
     }
   }
+
+  // ================================================================ Tide gunship (helicopter by Zsky, CC BY)
+  // Called in when a big outpost raises the alarm: flies in, circles the nearest player with a door
+  // gunner, and can be shot down. One at a time, with a cooldown.
+  X.gunship = null; X.gunshipCD = 0;
+  function callGunship(Gm, op, force) {
+    if (!FC.Assets.gltf.helicopter || (X.gunship && !X.gunship.dead) || (!force && X.gunshipCD > 0) || !Gm.players.length) return false;
+    X.gunshipCD = 240;
+    const a = Math.random() * Math.PI * 2, sx = op.x + Math.cos(a) * 520, sz = op.z + Math.sin(a) * 520;
+    const v = new FC.Vehicle('gyro', sx, sz, 0, scene);
+    v.group.remove(v.mesh); for (const l of v.lights) v.group.remove(l);
+    const body = FC.Assets.orientedProp('helicopter', { len: 13, faceFix: Math.PI });
+    const blades = new THREE.Group(); blades.position.set(0, body.userData.size.h * 0.95, 0.4);
+    const bm = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.6 });
+    for (const r of [0, Math.PI / 2]) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.06, 12), bm); b.rotation.y = r; blades.add(b); }
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(6, 24), new THREE.MeshBasicMaterial({ color: 0x222222, transparent: true, opacity: 0.18, depthWrite: false, side: THREE.DoubleSide }));
+    disc.rotation.x = -Math.PI / 2; blades.add(disc);
+    body.add(blades);
+    v.mesh = body; v.group.add(body);
+    v.len = 9; v.wid = 3; v.hp = v.maxHp = 950; v.patrol = true; v.gunship = true;
+    v.pos.y = FC.World.heightAt(sx, sz) + 60; v.op = op; v.life = 150; v.burstT = 2; v.shotT = 0; v.orbitA = a;
+    v.onDestroyed = (G2, attacker) => {
+      G2.announce('Gunship down!', '#ffd166', 4);
+      for (const p of G2.players) { FC.Progression.xp(p, 250, 'Gunship', G2); FC.Progression.cash(p, 200, 'Salvage', G2); }
+    };
+    v.custom = (dt, G2) => {
+      blades.rotation.y += dt * 38;
+      v.life -= dt;
+      // target: nearest living player on foot or in a vehicle
+      let tgt = null, bd = 1e9;
+      for (const p of G2.players) { if (!p.alive) continue; const d = Math.hypot(p.pos.x - v.pos.x, p.pos.z - v.pos.z); if (d < bd) { bd = d; tgt = p; } }
+      const leaving = v.life <= 0 || !tgt || op.liberated && bd > 300;
+      let gx, gz;
+      if (leaving) { gx = v.pos.x + (v.pos.x - (tgt ? tgt.pos.x : op.x)); gz = v.pos.z + (v.pos.z - (tgt ? tgt.pos.z : op.z)); }
+      else if (bd > 140) { gx = tgt.pos.x; gz = tgt.pos.z; }
+      else { v.orbitA += dt * 0.22; gx = tgt.pos.x + Math.cos(v.orbitA) * 55; gz = tgt.pos.z + Math.sin(v.orbitA) * 55; }
+      const dx = gx - v.pos.x, dz = gz - v.pos.z, dd = Math.hypot(dx, dz);
+      const want = Math.min(32, dd * 0.4 + 6);
+      v.speed += (want - v.speed) * Math.min(1, dt * 0.8);
+      const head = FC.yawTo(dx, dz);
+      v.yaw = FC.turnTowards(v.yaw, tgt && !leaving && bd < 140 ? FC.yawTo(tgt.pos.x - v.pos.x, tgt.pos.z - v.pos.z) + 1.2 : head, dt * 1.2);
+      if (dd > 1) { v.pos.x += (dx / dd) * v.speed * dt; v.pos.z += (dz / dd) * v.speed * dt; }
+      const gy = Math.max(0, FC.World.heightAt(v.pos.x, v.pos.z), FC.World.heightAt(v.pos.x + dx / Math.max(dd, 1) * 40, v.pos.z + dz / Math.max(dd, 1) * 40));
+      v.pos.y += ((gy + (leaving ? 70 : 30)) - v.pos.y) * Math.min(1, dt * 0.7);
+      v.pitch = FC.clamp(v.speed / 32, 0, 1) * 0.18; v.roll = Math.sin(v.orbitA * 3) * 0.06;
+      v.group.position.copy(v.pos); v.group.rotation.set(v.pitch, v.yaw, v.roll, 'YXZ');
+      if (leaving && bd > 600) { v.dead = true; scene.remove(v.group); const i = G2.vehicles.indexOf(v); if (i >= 0) G2.vehicles.splice(i, 1); X.gunship = null; return; }
+      // door gunner: bursts at the target while it is in sight
+      if (tgt && !leaving && bd < 160) {
+        v.burstT -= dt;
+        const eye = new THREE.Vector3(tgt.pos.x, tgt.pos.y + 1.2, tgt.pos.z), muzzle = new THREE.Vector3(v.pos.x, v.pos.y - 0.5, v.pos.z);
+        const sees = FC.World.los(muzzle.x, muzzle.y, muzzle.z, eye.x, eye.y, eye.z);
+        if (v.burstT <= 0 && sees) {
+          v.shotT -= dt;
+          if (v.shotT <= 0) {
+            v.shotT = 0.11;
+            const miss = FC.clamp(bd / 60, 0.6, 3) * (tgt.vehicle ? 0.7 : 1) * (tgt.crouch ? 1.4 : 1);
+            const hitPt = eye.clone().add(new THREE.Vector3(FC.rand(-1, 1) * miss, FC.rand(-0.6, 0.6) * miss, FC.rand(-1, 1) * miss));
+            FC.FX.tracer(muzzle, hitPt);
+            FC.Audio.shot('rifle', 0.9 * G2.volumeAt(v.pos, 400), v.pos);
+            if (hitPt.distanceTo(eye) < 0.9) tgt.damage(9 * G2.enemyDmgMul, v.pos.x, v.pos.z, G2);
+            else FC.FX.impact(hitPt.x, FC.World.heightAt(hitPt.x, hitPt.z) + 0.05, hitPt.z, 'dust');
+            v.burstN = (v.burstN || 0) + 1;
+            if (v.burstN > 14) { v.burstN = 0; v.burstT = FC.rand(1.8, 3.2); }
+          }
+        }
+      }
+    };
+    X.gunship = v; Gm.vehicles.push(v);
+    Gm.announce('Tide gunship inbound — take cover or shoot it down!', '#ff6b6b', 5);
+    FC.Missions && FC.Missions.say && FC.Missions.say('Ama Reyes', 'Gunship! Get under cover or hit it with everything you have.');
+    return true;
+  }
+
+  // ================================================================ parrots (Poly by Google, CC BY)
+  X.flocks = [];
+  function spawnParrots() {
+    if (!FC.Assets.gltf.parrot) return;
+    const W = FC.World, rng = FC.mulberry32(777);
+    for (let f = 0; f < 9; f++) {
+      for (let t = 0; t < 200; t++) {
+        const x = (rng() * 2 - 1) * 620, z = (rng() * 2 - 1) * 620, h = W.heightAt(x, z);
+        if (h < 4 || h > 70) continue;
+        const fl = { x, z, birds: [], r: 14 + rng() * 14, h: h + 14 + rng() * 12, scared: 0 };
+        for (let i = 0; i < 5; i++) {
+          const b = FC.Assets.orientedProp('parrot', { len: 0.55, faceFix: Math.PI });
+          b.userData.ph = rng() * 6.28; b.userData.off = rng() * 6.28; b.userData.sp = 0.5 + rng() * 0.3;
+          scene.add(b); fl.birds.push(b);
+        }
+        X.flocks.push(fl);
+        break;
+      }
+    }
+  }
+  function updateParrots(dt, Gm) {
+    const T = Gm.time;
+    for (const fl of X.flocks) {
+      const near = Gm.nearestPlayerDist(new THREE.Vector3(fl.x, fl.h, fl.z));
+      const show = near < 280;
+      fl.scared = Math.max(0, fl.scared - dt);
+      if (show && Gm.combatT > 7.9 && near < 120) fl.scared = 8;
+      for (const b of fl.birds) {
+        b.visible = show; if (!show) continue;
+        const u = b.userData, sp = u.sp * (fl.scared > 0 ? 2.4 : 1);
+        u.ph += dt * sp * (fl.scared > 0 ? 1 : 0.6);
+        const r = fl.r * (fl.scared > 0 ? 2.2 : 1) + Math.sin(u.ph * 1.7 + u.off) * 3;
+        const a = u.ph + u.off;
+        const x = fl.x + Math.cos(a) * r, z = fl.z + Math.sin(a) * r, y = fl.h + (fl.scared > 0 ? 12 : 0) + Math.sin(u.ph * 2.3 + u.off) * 2;
+        b.rotation.set(Math.sin(T * 14 + u.off) * 0.15, FC.yawTo(-Math.sin(a), Math.cos(a)), Math.cos(T * 18 + u.off) * 0.35);
+        b.position.set(x, y, z);
+      }
+    }
+  }
+
+  // ================================================================ radio masts at the outposts (Poly by Google, CC BY)
+  function placeMasts() {
+    if (!FC.Assets.gltf.radioTower) return;
+    const W = FC.World;
+    for (const op of W.outposts) {
+      for (let t = 0; t < 60; t++) {
+        const a = Math.random() * 6.28, r = op.r * (0.55 + Math.random() * 0.4), x = op.x + Math.cos(a) * r, z = op.z + Math.sin(a) * r;
+        if (W.pointBlocked(x, z, 2.5) || W.slopeAt(x, z) > 0.4) continue;
+        const m = FC.Assets.orientedProp('radioTower', { h: op.boss ? 22 : 15 });
+        m.position.set(x, W.heightAt(x, z) - 0.1, z); m.rotation.y = Math.random() * 6.28; scene.add(m);
+        W.addCircle(x, z, 1.4, op.boss ? 22 : 15);
+        break;
+      }
+    }
+  }
   function init(sc, Gm) {
     scene = sc; X.scene = sc;
     buildZiplines();
     placeBoats(Gm);
     dressCoast();
+    spawnParrots();
+    placeMasts();
     placeLandVehicles(Gm);
     setupStory(Gm);
   }
   function update(dt, Gm) {
     updatePatrolBoat();
+    X.gunshipCD = Math.max(0, X.gunshipCD - dt);
+    updateParrots(dt, Gm);
     for (const t of X.trucks) t.update(dt, Gm);
     for (const c of X.companions) c.update(dt, Gm);
     updateStory(dt, Gm);
   }
-  return Object.assign(X, { init, update, interact, rideZip, reinforce, giveCompanion, Companion });
+  return Object.assign(X, { init, update, interact, rideZip, reinforce, giveCompanion, Companion, callGunship });
 })();

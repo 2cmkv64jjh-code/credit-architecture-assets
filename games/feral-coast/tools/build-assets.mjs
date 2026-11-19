@@ -29,6 +29,8 @@ const EXTRA = {
   grenade: 'grenade.glb', fireGrenade: 'firegrenade.glb', fox: 'fox.glb', shark: 'shark.glb',
   shipLarge: 'ship_large.glb', shipSmall: 'ship_small.glb', dock: 'dock.glb', dockBroken: 'dock_broken.glb',
   anchor: 'anchor.glb', cannon: 'cannon.glb', chestGold: 'chest_gold.glb',
+  // CC BY models from Poly Pizza (see README credits)
+  croc: 'croc.glb', bear: 'bear.glb', parrot: 'parrot.glb', radioTower: 'radio.glb', helicopter: 'helicopter.glb',
 };
 const out = { models: {}, textures: {} };
 for (const [k, f] of Object.entries(MODELS)) out.models[k] = fs.readFileSync(path.join(lib, f)).toString('base64');

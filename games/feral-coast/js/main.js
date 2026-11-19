@@ -224,6 +224,7 @@
     op.alarmTriggered = true;
     FC.Audio.siren(Math.max(0.25, G.volumeAt(new THREE.Vector3(op.x, op.y, op.z), 400)));
     G.announce(`ALARM at ${op.name}! Reinforcements inbound`, '#ff6b6b', 5);
+    if (FC.World.outposts.indexOf(op) >= 4 && G.mode !== 'ghost') setTimeout(() => { if (!op.liberated && G.state !== 'title') FC.Expansion.callGunship(G, op); }, 15000);
     if (FC.Expansion.reinforce(G, op)) return;
     setTimeout(() => {
       if (op.liberated || G.state === 'title') return;
@@ -352,13 +353,13 @@
         h.damage(G, w.dmg * (r.head ? 2 : 1), p);
         if (was && !h.alive) kill = true; FC.FX.impact(end.x, end.y, end.z, 'blood'); anyHit = true;
       } else if (h instanceof FC.Vehicle) {
-        h.damage(G, w.dmg * 0.6, p); FC.FX.impact(end.x, end.y, end.z, 'spark');
+        h.damage(G, w.dmg * 0.6, p); FC.FX.impact(end.x, end.y, end.z, 'spark'); FC.Audio.hitMetal(end);
       } else if (h) {
         h.hp -= w.dmg; FC.FX.impact(end.x, end.y, end.z, 'spark');
         if (h.hp <= 0) explodeBarrel(h, p);
       } else if (r.t < Infinity) {
         if (end.y < 0.1 && FC.World.heightAt(end.x, end.z) < 0) { FC.FX.splash(end.x, 0, end.z); FC.Audio.splash(end); }
-        else { FC.FX.impact(end.x, end.y, end.z, r.kind === 'box' ? 'spark' : 'dust'); if (r.kind === 'box') FC.Audio.ricochet(end); else FC.Audio.impact(end); }
+        else { FC.FX.impact(end.x, end.y, end.z, r.kind === 'box' ? 'spark' : 'dust'); if (r.kind === 'box') { FC.Audio.ricochet(end); FC.Audio.hitMetal(end); } else FC.Audio.hitSurface(end, r.kind); }
       }
     }
     if (anyHit) { p.hitmarker = 0.15; if (kill) { p.killmarker = 0.3; FC.Audio.kill(); } else FC.Audio.hit(); }
@@ -687,9 +688,16 @@
     }
     FC.Audio.loop('rain', 'rain-loop', FC.Env.rain > 0.35, 0.35);
     FC.Audio.loop('wind', 'wind-loop', true, 0.12);
+    { const p0 = G.players[0], hj = p0 ? FC.World.heightAt(p0.pos.x, p0.pos.z) : 0;
+      FC.Audio.loop('jungle', 'jungle-bed', G.state === 'playing' && hj > 3 && FC.Env.night < 0.5 && FC.Env.rain < 0.5, 0.22); }
+    G.howlT = (G.howlT || 20) - dt;
+    if (G.howlT <= 0) {
+      G.howlT = FC.rand(25, 60);
+      if (FC.Env.night > 0.4) { const w = G.animals.find((a) => a.kind === 'wolf' && a.alive && G.nearestPlayerDist(a.pos) < 400); if (w) FC.Audio.howl(w.pos); }
+    }
     G.vehicles.forEach((v, i) => {
-      const driven = !v.dead && (v.seats[0] || (v.convoy && !v.convoy.alerted && G.nearestPlayerDist(v.pos) < 90));
-      FC.Audio.loop('eng' + i, 'engine-idle', !!driven, v.seats[0] ? 0.4 : 0.25 * G.volumeAt(v.pos, 90), 0.75 + Math.min(1.4, Math.abs(v.speed) / 18));
+      const driven = !v.dead && (v.seats[0] || v.gunship || (v.convoy && !v.convoy.alerted && G.nearestPlayerDist(v.pos) < 90));
+      FC.Audio.loop('eng' + i, v.kind === 'gyro' ? 'rotor-loop' : 'engine-idle', !!driven, v.seats[0] ? 0.4 : v.gunship ? 0.7 * G.volumeAt(v.pos, 450) : 0.25 * G.volumeAt(v.pos, 90), 0.75 + Math.min(1.4, Math.abs(v.speed) / 18));
     });
     const combat = G.enemies.some((e) => e.alive && e.alerted && !e.dormant && G.nearestPlayerDist(e.pos) < 120 && (e.sees[0] || e.sees[1]));
     G.combatT = combat ? 8 : Math.max(0, (G.combatT || 0) - dt);

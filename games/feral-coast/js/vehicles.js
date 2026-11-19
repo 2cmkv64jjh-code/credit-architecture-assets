@@ -118,6 +118,7 @@ FC.Vehicle = class {
     if (this.onDestroyed) this.onDestroyed(G, attacker);
   }
   update(dt, G) {
+    if (this.custom && !this.dead) { this.custom(dt, G); return; }
     if (this.dead) {
       this.smokeT -= dt;
       if (this.smokeT <= 0 && this.deadT === undefined) this.deadT = 0;

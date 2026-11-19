@@ -74,6 +74,7 @@ Driving: forward/back is throttle, left/right steers, jump is the handbrake and 
   - The driver steers and the passenger shoots.
   - A militia gunboat patrols the coast with two gunners.
 - **Ziplines:** cables run from every relay tower down to nearby outposts and villages. Interact at the platform edge to ride, shoot while sliding, and jump off mid-ride to open the glider.
+- **Tide gunship:** an alarm at any of the bigger outposts (and Vael's last stand) calls in a helicopter gunship 15 seconds later. It circles you while a door gunner fires bursts. Get under cover or shoot it down for 250 XP.
 - **Alarm reinforcements:** a tripped alarm sends militia trucks racing in along the roads. The soldiers jump out when they arrive or spot you, and you can ambush the trucks on the way.
 - **Wolf companion:** Fang (Ash for player 2) comes from the "Wolf at the Door" mission or the trader for $350.
   - Tagging an enemy sends the wolf after them, and unaware guards die silently.
@@ -123,6 +124,9 @@ Driving: forward/back is throttle, left/right steers, jump is the handbrake and 
 - **Wild island:**
   - Crocodiles in the rivers and shoreline, and animated sharks in deeper water.
   - Foxes in the woods (pelts sell to the trader).
+  - Black bears in the high forest: they charge if you get close (crouch to sneak past) and give up after a while.
+  - Flocks of parrots circle the jungle and scatter when shooting starts.
+  - Wolves howl at night.
   - Shipwrecks on the reefs, piers out to every boat mooring, beached skiffs by the villages and shore cannons at the coastal forts.
   - Thunderstorms whose lightning can start bush fires.
   - Random encounters: executions to stop, ambushes, supply drops and a paymaster convoy.
@@ -175,6 +179,7 @@ Driving: forward/back is throttle, left/right steers, jump is the handbrake and 
 
 - 3D models and textures: **Quaternius**, **Kenney** and **Screaming Brain Studios**, all CC0 1.0 (public domain). They come via the `@netforge/asset-library-files` npm package; see `assets/NOTICE-asset-library.txt` and `assets/CC0-1.0.txt`.
 - More CC0 models by **Quaternius**, from the Toon Shooter Game Kit (guns, knife, grenades), the Pirate Kit (animated shark, shipwrecks, piers, cannons, anchor, gold chest) and Ultimate Animated Animals (fox). They were downloaded from the creator's public Google Drive folders, converted with `tools/gltf-to-glb.mjs`, meshopt-compressed with [glTF-Transform](https://gltf-transform.dev) and stored in `assets/models/`.
+- Models from Poly Pizza, credited to their authors (CC BY): "Crocodile" by jeremy, "Helicopter" by Zsky, and "Black bear", "Parrot" and "Radio tower" by Poly by Google. They were converted from OBJ with `tools/obj-to-glb.py` and stored in `assets/models/`.
 - Combat music: `assets/audio/combat.mp3`, from the same CC0 library.
 - Engine: [three.js](https://threejs.org) r160 (MIT, see `vendor/THREE_LICENSE`).
 - Sound effects: [plinkfx](https://github.com/maximilianfeix/plinkfx) by Maximilian Feix. The sounds are CC0 and the player code is MIT.

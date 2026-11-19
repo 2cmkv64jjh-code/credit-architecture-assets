@@ -33,23 +33,26 @@ FC.Audio = (function () {
 
   // looping recorded bed (rain): mp3 padding is skipped with loopStart/loopEnd
   const recLoops = {};
-  function recLoop(key, name, on, vol) {
-    if (!ready || !REC[name]) return false;
+  function recLoop(key, name, on, vol, rate) {
+    if (!ready || (on && !REC[name])) return false;
     const ctx = P.context(), cur = recLoops[key], m = FC.Settings.get().master ?? 1;
     if (on && !cur) {
-      const src = ctx.createBufferSource(); src.buffer = REC[name]; src.loop = true;
+      const src = ctx.createBufferSource(); src.buffer = REC[name]; src.loop = true; src.playbackRate.value = rate || 1;
       src.loopStart = 0.06; src.loopEnd = REC[name].duration - 0.06;
       const g = ctx.createGain(); g.gain.value = 0; g.gain.linearRampToValueAtTime(vol * m, ctx.currentTime + 2);
       src.connect(g); g.connect(ctx.destination); src.start(0, 0.06);
       recLoops[key] = { src, g };
+      src.loopStart = Math.min(src.loopStart, REC[name].duration * 0.1); src.loopEnd = Math.max(src.loopEnd, REC[name].duration * 0.9);
     } else if (!on && cur) {
       cur.g.gain.cancelScheduledValues(ctx.currentTime); cur.g.gain.setValueAtTime(cur.g.gain.value, ctx.currentTime);
       cur.g.gain.linearRampToValueAtTime(0, ctx.currentTime + 1.5); cur.src.stop(ctx.currentTime + 1.6); delete recLoops[key];
-    } else if (on && cur) cur.g.gain.value = vol * m;
+    } else if (on && cur) { cur.g.gain.value = vol * m; if (rate) cur.src.playbackRate.value = rate; }
     return true;
   }
   // recorded footsteps (Freesound): surface -> sample prefix
-  const STEP_REC = { wood: 'step_wood', sand: 'step_sand', grass: 'step_leaf', water: null, gravel: null, stone: null };
+  const STEP_REC = { wood: 'step_wood', sand: 'step_sand', grass: 'step_leaf', water: null, gravel: 'step_stone', stone: 'step_stone' };
+  const nvar = (pre) => { let n = 0; while (REC[pre + n]) n++; return n; };
+  const pick = (pre) => pre + Math.floor(Math.random() * Math.max(1, nvar(pre)));
   let stepCool = 0;
 
   function play(name, o) {
@@ -114,7 +117,7 @@ FC.Audio = (function () {
     whoosh(vol) { if (!ready) return S.whoosh(vol); play('toss', { volume: 0.5 * vol }); },
     hit() { if (!ready) return S.hit(); play('enemy-hit', { volume: 0.35 }); },
     kill() { if (!ready) return S.kill(); play('hit-heavy', { volume: 0.3 }); play('body-fall', { volume: 0.4, delay: 0.35 }); },
-    takedown() { if (!ready) return S.takedown(); play('stab', { volume: 0.7 }); play('body-fall', { volume: 0.6, delay: 0.4 }); },
+    takedown() { if (!ready) return S.takedown(); rec(pick('punch'), 0.6, 0, FC.rand(0.9, 1.05)); play('stab', { volume: 0.5 }); play('body-fall', { volume: 0.6, delay: 0.4 }); },
     hurt() { if (!ready) return S.hurt(); play('hurt', { volume: 0.55, cooldown: 0.25 }); },
     click() { if (!ready) return S.click(); play('click-soft', { volume: 0.4 }); },
     dry() { if (!ready) return S.click(); play('dry-fire', { volume: 0.6 }); },
@@ -139,6 +142,11 @@ FC.Audio = (function () {
     horn() { if (!ready) return S.horn(); play('car-horn', { volume: 0.6, cooldown: 0.4 }); },
     crash(vol) { if (!ready) return S.crash(vol); play('car-crash', { volume: vol }); },
     screech(vol) { play('tire-screech', { volume: vol, cooldown: 1.2, voices: 1 }); },
+    // bullet hits (Kenney Impact Sounds, CC0)
+    hitMetal(pos) { const w = where(pos, 60); rec(pick('hit_metal'), 0.5 * w.volume, w.pan, FC.rand(0.9, 1.1)); },
+    hitSurface(pos, kind) { const w = where(pos, 50); rec(pick(kind === 'tree' ? 'hit_wood' : 'hit_soft'), 0.45 * w.volume, w.pan, FC.rand(0.9, 1.15)); },
+    howl(pos) { const w = pos ? where(pos, 600) : { volume: 0.6, pan: 0 }; if (!rec('wolf_howl', 0.55 * Math.max(0.15, w.volume), w.pan, FC.rand(0.92, 1.05))) A.growl(0.4, pos); },
+    snarl(pos) { const w = pos ? where(pos, 80) : { volume: 1, pan: 0 }; if (!rec('snarl', 0.9 * w.volume, w.pan, FC.rand(0.7, 0.85))) A.growl(1, pos); },
     ricochet(pos) { const w = where(pos, 60); if (Math.random() < 0.4) play('ricochet', { volume: w.volume * 0.35, pan: w.pan, cooldown: 0.15 }); },
     impact(pos) { const w = where(pos, 50); play('thud', { volume: w.volume * 0.25, pan: w.pan, cooldown: 0.05 }); },
     splash(pos) { const w = where(pos, 60); play('splash', { volume: w.volume * 0.6, pan: w.pan }); },
@@ -148,7 +156,7 @@ FC.Audio = (function () {
       const pre = STEP_REC[surface], now = performance.now();
       if (pre && REC[pre + '0'] && now > stepCool) {
         stepCool = now + 110;
-        if (rec(pre + Math.floor(Math.random() * 6), (surface === 'sand' ? 0.5 : 0.32) * vol, FC.rand(-0.08, 0.08), FC.rand(0.92, 1.08))) return;
+        if (rec(pick(pre), (surface === 'sand' ? 0.5 : surface === 'stone' || surface === 'gravel' ? 0.4 : 0.32) * vol, FC.rand(-0.08, 0.08), FC.rand(0.92, 1.08))) return;
       }
       play('step-' + surface, { volume: 0.18 * vol, cooldown: 0.12, voices: 2, rate: FC.rand(0.92, 1.08) });
     },
@@ -156,6 +164,10 @@ FC.Audio = (function () {
     loop(key, name, on, vol, rate) {
       if (!ready) return;
       if (key === 'rain' && REC.rain_loop) { recLoop('rain', 'rain_loop', on, vol * 1.4); return; }
+      // recorded engine beds (Freesound): rotor for aircraft, jeep for land vehicles; jungle birds by day
+      const recName = name === 'rotor-loop' ? 'rotor_loop' : name === 'engine-idle' ? 'jeep_loop' : name === 'jungle-bed' ? 'jungle_loop' : null;
+      if (recName && REC[recName]) { recLoop(key, recName, on, vol * (recName === 'jeep_loop' ? 1.3 : 1), rate); return; }
+      if (name === 'jungle-bed') return;
       const v = loops[key];
       if (on && !v) loops[key] = play(name, { volume: vol, loop: true, rate: rate || 1 });
       else if (!on && v) { v.stop(0.8); delete loops[key]; }

@@ -127,7 +127,21 @@ FC.Assets = (function () {
     return mesh;
   }
 
-  return { load, gltf, tex, staticModel, propMesh, toFloat };
+  // A prop turned so its front faces -Z (game forward). faceFix: rotation that maps the model's front
+  // to -Z (models facing +Z need PI, facing -X need -PI/2). Scaled by its longest horizontal side (len)
+  // or by height (h). Returns a Group whose origin sits under the model's centre, base on y=0.
+  function orientedProp(name, opts) {
+    const g = new THREE.Group();
+    if (!gltf[name]) return g;
+    const s = staticModel(name);
+    const m = new THREE.Mesh(s.geometry, s.materials);
+    const k = opts.h ? opts.h / s.size.y : opts.len / Math.max(s.size.x, s.size.z);
+    m.scale.setScalar(k); m.rotation.y = opts.faceFix || 0;
+    m.castShadow = true; m.receiveShadow = true;
+    g.add(m); g.userData.size = { h: s.size.y * k, len: Math.max(s.size.x, s.size.z) * k, wid: Math.min(s.size.x, s.size.z) * k };
+    return g;
+  }
+  return { load, gltf, tex, staticModel, propMesh, orientedProp, toFloat };
 })();
 
 // ---------------------------------------------------------------------------------------------

@@ -42,7 +42,7 @@ FC.Living = (function () {
   class Predator {
     constructor(kind, x, z) {
       this.kind = kind; this.hostile = true; this.alive = true; this.deadT = 0;
-      this.hp = kind === 'croc' ? 180 : 150;
+      this.hp = kind === 'croc' ? 180 : kind === 'bear' ? 320 : 150;
       this.pos = new THREE.Vector3(x, 0, z); this.home = { x, z }; this.yaw = Math.random() * 6; this.state = 'lurk'; this.t = 0; this.biteT = 0;
       if (kind === 'shark' && FC.Assets.gltf.shark) {
         // animated CC0 shark (Quaternius Pirate Kit), scaled to ~3.4 m long
@@ -51,6 +51,11 @@ FC.Living = (function () {
         this.realRig.play('Swim');
         this.m = { g: this.realRig.root };
         this.rig = this.realRig;
+      } else if ((kind === 'croc' && FC.Assets.gltf.croc) || kind === 'bear') {
+        // CC BY Poly Pizza models (crocodile by jeremy, black bear by Poly by Google), moved procedurally
+        const g = kind === 'croc' ? FC.Assets.orientedProp('croc', { len: 3.3, faceFix: -Math.PI / 2 }) : FC.Assets.orientedProp('bear', { len: 2.1, faceFix: Math.PI });
+        this.m = { g, model: g.children[0] };
+        this.rig = { size: g.userData.size, root: g };
       } else {
         this.m = kind === 'croc' ? crocMesh() : sharkMesh();
         this.rig = { size: kind === 'croc' ? { h: 0.6, len: 3.2, wid: 0.8 } : { h: 0.9, len: 3.6, wid: 0.9 }, root: this.m.g };
@@ -62,30 +67,36 @@ FC.Living = (function () {
       this.hp -= amount;
       if (this.hp <= 0) {
         this.alive = false; FC.Audio.creatureDie(this.pos);
-        if (attacker && attacker.index !== undefined) { FC.Progression.xp(attacker, 30, this.kind === 'croc' ? 'Crocodile' : 'Shark', G); FC.Progression.cash(attacker, 60, 'Hide', G); }
+        if (attacker && attacker.index !== undefined) { FC.Progression.xp(attacker, this.kind === 'bear' ? 45 : 30, this.kind === 'croc' ? 'Crocodile' : this.kind === 'bear' ? 'Black bear' : 'Shark', G); FC.Progression.cash(attacker, this.kind === 'bear' ? 90 : 60, 'Hide', G);
+          attacker.prog.pelts = attacker.prog.pelts || {}; attacker.prog.pelts[this.kind] = (attacker.prog.pelts[this.kind] || 0) + 1; }
         return;
       }
-      if (attacker && attacker.pos) { this.state = 'attack'; this.target = attacker; }
+      if (attacker && attacker.pos) { if (this.kind === 'bear' && this.state !== 'attack') FC.Audio.snarl(this.pos); this.state = 'attack'; this.target = attacker; }
     }
     update(dt, G, nearest) {
       const W = FC.World, m = this.m;
-      if (!this.alive) { this.deadT += dt; m.g.rotation.z = Math.min(Math.PI, this.deadT * 2); m.g.position.y = this.kind === 'shark' ? -0.2 : this.pos.y; return; }
+      if (!this.alive) { this.deadT += dt; m.g.rotation.z = Math.min(this.kind === 'bear' ? Math.PI / 2 : Math.PI, this.deadT * 2); m.g.position.y = this.kind === 'shark' ? -0.2 : this.pos.y + (this.kind === 'bear' ? this.rig.size.wid * 0.4 : 0); return; }
       if (nearest > 260) { m.g.visible = false; return; }
       m.g.visible = true;
       this.t += dt; this.biteT -= dt;
       // prey: anyone in or at the edge of the water nearby (boats are safe from crocs, not from shark bumps)
       if (this.state !== 'attack' || !this.target || !this.target.alive) {
         this.state = 'lurk'; this.target = null;
-        const range = this.kind === 'croc' ? 9 : 16;
+        const range = this.kind === 'croc' ? 9 : this.kind === 'bear' ? 17 : 16;
         for (const p of G.players) {
           if (!p.alive || p.vehicle) continue;
-          const wet = W.heightAt(p.pos.x, p.pos.z) < (this.kind === 'croc' ? 1.0 : -1.4);
-          if (wet && p.pos.distanceTo(this.pos) < range) { this.state = 'attack'; this.target = p; FC.Audio.growl(0.8, this.pos); break; }
+          const wet = this.kind === 'bear' ? true : W.heightAt(p.pos.x, p.pos.z) < (this.kind === 'croc' ? 1.0 : -1.4);
+          const sneaky = this.kind === 'bear' && p.crouch && p.pos.distanceTo(this.pos) > 8;
+          if (wet && !sneaky && p.pos.distanceTo(this.pos) < range) { this.state = 'attack'; this.target = p; if (this.kind === 'bear') FC.Audio.snarl(this.pos); else FC.Audio.growl(0.8, this.pos); break; }
         }
       }
       let tx, tz, speed;
-      if (this.state === 'attack') { tx = this.target.pos.x; tz = this.target.pos.z; speed = this.kind === 'croc' ? 7 : 9; }
-      else {
+      if (this.state === 'attack') {
+        tx = this.target.pos.x; tz = this.target.pos.z; speed = this.kind === 'croc' ? 7 : this.kind === 'bear' ? 7.5 : 9;
+        if (this.kind === 'bear' && Math.hypot(tx - this.home.x, tz - this.home.z) > 90) this.state = 'lurk'; // gives up the chase
+      } else if (this.kind === 'bear') {
+        const a = this.t * 0.05; tx = this.home.x + Math.cos(a) * 25; tz = this.home.z + Math.sin(a * 1.3) * 25; speed = 1.4;
+      } else {
         const a = this.t * (this.kind === 'shark' ? 0.25 : 0.08);
         tx = this.home.x + Math.cos(a) * (this.kind === 'shark' ? 22 : 6); tz = this.home.z + Math.sin(a) * (this.kind === 'shark' ? 22 : 6);
         speed = this.kind === 'shark' ? 3.5 : 0.8;
@@ -94,21 +105,28 @@ FC.Living = (function () {
       if (d > 0.5) {
         const nx = this.pos.x + (dx / d) * speed * dt, nz = this.pos.z + (dz / d) * speed * dt;
         const h = W.heightAt(nx, nz);
-        const ok = this.kind === 'croc' ? h < 1.4 : h < -2.5;
+        const ok = this.kind === 'croc' ? h < 1.4 : this.kind === 'bear' ? h > 1.5 && !W.pointBlocked(nx, nz, 0.8) : h < -2.5;
         if (ok) { this.pos.x = nx; this.pos.z = nz; } else if (this.state === 'attack' && this.kind === 'shark') this.state = 'lurk';
         this.yaw = FC.turnTowards(this.yaw, FC.yawTo(dx, dz), dt * 3);
       }
-      if (this.state === 'attack' && this.target && d < (this.kind === 'croc' ? 1.9 : 2.2) && this.biteT <= 0) {
-        this.biteT = 1.4;
-        this.target.damage((this.kind === 'croc' ? 26 : 32) * G.enemyDmgMul + 6, this.pos.x, this.pos.z, G);
+      if (this.state === 'attack' && this.target && d < (this.kind === 'croc' ? 1.9 : this.kind === 'bear' ? 2.3 : 2.2) && this.biteT <= 0) {
+        this.biteT = this.kind === 'bear' ? 1.1 : 1.4;
+        if (this.kind === 'bear') FC.Audio.snarl(this.pos);
+        this.target.damage((this.kind === 'croc' ? 26 : this.kind === 'bear' ? 30 : 32) * G.enemyDmgMul + 6, this.pos.x, this.pos.z, G);
         FC.FX.impact(this.target.pos.x, this.target.pos.y + 0.6, this.target.pos.z, 'blood');
         FC.Audio.splash(this.pos);
       }
       const h = W.heightAt(this.pos.x, this.pos.z);
-      this.pos.y = this.kind === 'croc' ? Math.max(h, -0.32) : (this.state === 'attack' ? -0.35 : -0.55);
+      this.pos.y = this.kind === 'croc' ? Math.max(h, -0.32) : this.kind === 'bear' ? h : (this.state === 'attack' ? -0.35 : -0.55);
       m.g.position.copy(this.pos); m.g.rotation.set(0, this.yaw, 0);
       const wig = Math.sin(this.t * (speed > 3 ? 9 : 3));
-      if (this.kind === 'croc') {
+      if (m.model) {
+        // procedural motion for the static models: body sway / waddle, lunge when biting
+        const moving = d > 0.5, sp = moving ? speed : 0;
+        if (this.kind === 'croc') { m.model.rotation.z = 0; m.g.rotation.y = this.yaw + wig * (sp > 2 ? 0.12 : 0.03); m.model.position.z = this.state === 'attack' && d < 4 ? -Math.max(0, Math.sin(this.t * 7)) * 0.4 : 0; }
+        else { const ph = this.t * (sp > 3 ? 11 : 5); m.model.rotation.z = moving ? Math.sin(ph) * (sp > 3 ? 0.07 : 0.05) : 0; m.model.position.y = moving ? Math.abs(Math.sin(ph)) * (sp > 3 ? 0.12 : 0.04) : Math.sin(this.t * 1.5) * 0.01;
+          m.model.rotation.x = this.state === 'attack' && d < 3 && this.biteT > 0.7 ? -0.25 : 0; }
+      } else if (this.kind === 'croc') {
         m.tail.forEach((s, i) => { s.rotation.y = wig * 0.25 * (i + 1) * 0.5; });
         m.jaw.rotation.x = this.state === 'attack' && d < 4 ? 0.5 + Math.sin(this.t * 14) * 0.2 : 0.05;
         m.legs.forEach((l, i) => { l.rotation.x = Math.sin(this.t * 8 + i * 1.6) * (speed > 2 ? 0.5 : 0.05); });
@@ -131,6 +149,8 @@ FC.Living = (function () {
       }
     }
     for (let i = 0; i < 6; i++) { const p = find((h) => h < -6 && h > -16, 400); if (p) G.animals.push(new Predator('shark', p.x, p.z)); }
+    // black bears roam the high forest (never near camps, outposts or villages)
+    if (FC.Assets.gltf.bear) for (let i = 0; i < 6; i++) { const p = find((h, x, z) => h > 22 && h < 90 && W.slopeAt(x, z) < 0.6 && !W.isReserved(x, z, 90), 600); if (p) G.animals.push(new Predator('bear', p.x, p.z)); }
   }
 
   // ============================================================ storms & lightning
