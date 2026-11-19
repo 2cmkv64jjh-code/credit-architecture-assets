@@ -121,7 +121,7 @@ FC.Menus = (function () {
       else { p.ammo[item.id].mag = w.mag; p.ammo[item.id].reserve = w.reserve; }
       p.weapon = item.id;
     } else if (item.kind === 'ammo') {
-      for (const k of ['pistol', 'rifle', 'shotgun', 'sniper']) p.ammo[k].reserve = FC.Progression.maxReserve(p, k);
+      for (const k of ['pistol', 'bow', 'rifle', 'shotgun', 'sniper']) p.ammo[k].reserve = FC.Progression.maxReserve(p, k);
     } else if (item.kind === 'throw') {
       for (const k of ['molotov', 'grenade']) if (p.owned.has(k)) p.ammo[k].mag = Math.min(FC.Progression.maxThrow(p, k), p.ammo[k].mag + 2);
     } else if (item.kind === 'med') p.medkits = Math.min(5, p.medkits + 1);

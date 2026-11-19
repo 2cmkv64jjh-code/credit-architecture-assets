@@ -71,6 +71,7 @@ FC.Audio = (function () {
     liberate() { if (!ready) return S.liberate(); play('achievement', { volume: 0.7 }); },
     levelUp() { if (!ready) return S.levelUp(); play('level-up', { volume: 0.6 }); },
     radio() { if (!ready) return S.radio(); play('static-burst', { volume: 0.18 }); },
+    bow() { if (!ready) return S.whoosh(0.6); play('bow-twang', { volume: 0.5 }); },
     quest() { play('quest-new', { volume: 0.55 }); },
     siren(vol) { if (!ready) return S.siren(vol); play('siren', { volume: Math.min(1, vol), voices: 1 }); setTimeout(() => play('alarm', { volume: vol * 0.7 }), 800); },
     growl(vol, pos) { if (!ready) return S.growl(vol); const w = pos ? where(pos, 70) : { volume: vol, pan: 0 }; play(Math.random() < 0.5 ? 'growl-small' : 'dog-bark', { volume: w.volume * 0.9, rate: 0.7, pan: w.pan, cooldown: 0.5 }); },

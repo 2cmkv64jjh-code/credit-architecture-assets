@@ -1,14 +1,15 @@
 'use strict';
 // Player: movement, stances, ladders, vehicles, weapons, interactions, downed/revive state.
 FC.WEAPONS = {
-  pistol: { name: 'Whisper .45', dmg: 36, head: 3.1, rate: 0.24, mag: 12, reserve: 48, maxReserve: 96, spread: 0.01, ads: 0.002, range: 120, noise: 7, auto: false, reload: 1.3, recoil: 0.025, sound: 'pistol', zoom: 1.25 },
-  rifle: { name: 'AR-7 Carbine', dmg: 25, head: 2.3, rate: 0.1, mag: 30, reserve: 150, maxReserve: 240, spread: 0.014, ads: 0.003, range: 230, noise: 75, auto: true, reload: 1.8, recoil: 0.013, sound: 'rifle', zoom: 1.6 },
-  shotgun: { name: 'Breaker 12', pellets: 9, dmg: 15, head: 1.6, rate: 0.75, mag: 6, reserve: 30, maxReserve: 48, spread: 0.065, ads: 0.045, range: 50, noise: 85, auto: false, reload: 2.4, recoil: 0.07, sound: 'heavy', zoom: 1.2, price: 450 },
-  sniper: { name: 'Longtide .308', dmg: 115, head: 3, rate: 1.15, mag: 5, reserve: 20, maxReserve: 40, spread: 0.03, ads: 0.0002, range: 520, noise: 110, auto: false, reload: 2.6, recoil: 0.09, sound: 'sniper', zoom: 4.5, scope: true, price: 800 },
+  pistol: { name: 'Whisper .45', dmg: 36, head: 3.1, rate: 0.24, mag: 12, reserve: 48, maxReserve: 96, spread: 0.01, ads: 0.002, range: 120, noise: 7, auto: false, reload: 0.85, recoil: 0.025, sound: 'pistol', zoom: 1.25 },
+  rifle: { name: 'AR-7 Carbine', dmg: 25, head: 2.3, rate: 0.1, mag: 30, reserve: 150, maxReserve: 240, spread: 0.014, ads: 0.003, range: 230, noise: 75, auto: true, reload: 1.05, recoil: 0.013, sound: 'rifle', zoom: 1.6 },
+  shotgun: { name: 'Breaker 12', pellets: 9, dmg: 15, head: 1.6, rate: 0.75, mag: 6, reserve: 30, maxReserve: 48, spread: 0.065, ads: 0.045, range: 50, noise: 85, auto: false, reload: 1.4, recoil: 0.07, sound: 'heavy', zoom: 1.2, price: 450 },
+  sniper: { name: 'Longtide .308', dmg: 115, head: 3, rate: 1.15, mag: 5, reserve: 20, maxReserve: 40, spread: 0.03, ads: 0.0002, range: 520, noise: 110, auto: false, reload: 1.5, recoil: 0.09, sound: 'sniper', zoom: 4.5, scope: true, price: 800 },
+  bow: { name: 'Silent Recurve', bow: true, mag: 1, reserve: 24, maxReserve: 36, rate: 0.3, reload: 0.45, zoom: 1.5, spread: 0.004, ads: 0.0008, range: 200 },
   molotov: { name: 'Molotov', throwable: 'molotov', mag: 3, maxCount: 5, rate: 0.8, zoom: 1, price: 120 },
   grenade: { name: 'Frag Grenade', throwable: 'grenade', mag: 2, maxCount: 4, rate: 0.8, zoom: 1, price: 150 },
 };
-FC.WEAPON_ORDER = ['pistol', 'rifle', 'shotgun', 'sniper', 'molotov', 'grenade'];
+FC.WEAPON_ORDER = ['pistol', 'bow', 'rifle', 'shotgun', 'sniper', 'molotov', 'grenade'];
 
 FC.Player = class {
   constructor(index, device, scene) {
@@ -25,7 +26,8 @@ FC.Player = class {
     this.downTimer = 0; this.respawnTimer = 0; this.reviveProgress = 0;
     this.crouch = false; this.sprint = false; this.onGround = true; this.swimming = false; this.inBush = false;
     this.eyeH = 1.65; this.climbing = null; this.vehicle = null; this.seat = -1;
-    this.owned = new Set(['pistol', 'rifle', 'molotov']);
+    this.owned = new Set(['pistol', 'bow', 'rifle', 'molotov']);
+    this.drawT = 0; this.gliding = false;
     this.weapon = 'rifle';
     this.ammo = {}; for (const k in FC.WEAPONS) this.ammo[k] = { mag: FC.WEAPONS[k].mag, reserve: FC.WEAPONS[k].reserve || 0 };
     this.fireCd = 0; this.reloadT = 0; this.healT = 0; this.aimT = 0; this.recoil = 0; this.kick = 0;
@@ -45,6 +47,11 @@ FC.Player = class {
     this.rig.root.traverse((o) => o.layers.set(1 + index));
     scene.add(this.rig.root);
     this.rig.play('Idle_Gun');
+    // hang glider (layer 0 so you can see the wing above you while gliding)
+    const wing = new THREE.Shape(); wing.moveTo(0, -1.1); wing.lineTo(3.2, 0.9); wing.lineTo(0, 0.4); wing.lineTo(-3.2, 0.9); wing.closePath();
+    this.glider = new THREE.Mesh(new THREE.ShapeGeometry(wing), new THREE.MeshStandardMaterial({ color: index === 0 ? 0x1f8f86 : 0xd9822b, side: THREE.DoubleSide, roughness: 0.8 }));
+    this.glider.rotation.x = -Math.PI / 2; this.glider.position.y = 2.6; this.glider.visible = false; this.glider.castShadow = true;
+    this.rig.root.add(this.glider);
     this.buildViewmodels();
     this.cam.layers.enable(0);
     this.cam.layers.enable(index === 0 ? 2 : 1);
@@ -83,6 +90,23 @@ FC.Player = class {
     const gr = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), new THREE.MeshStandardMaterial({ color: 0x3e4a2a, roughness: 0.6 })); gr.position.set(0, 0.02, -0.05); vm.grenade.add(gr);
     P.part(vm.grenade, 0.02, 0.03, 0.03, 0, 0.07, -0.05, d);
     P.part(vm.grenade, 0.085, 0.085, 0.34, 0.05, -0.1, 0.14, sleeve); P.part(vm.grenade, 0.075, 0.075, 0.1, 0.03, -0.06, -0.03, skin);
+    // bow: grip + two limbs, a string that pulls back with the draw, and a nocked arrow
+    vm.bow = new THREE.Group();
+    const bowWood = new THREE.MeshStandardMaterial({ color: 0x4a2c18, roughness: 0.6 });
+    P.part(vm.bow, 0.035, 0.14, 0.04, 0, 0, -0.12, bowWood);
+    const limbU = P.part(vm.bow, 0.025, 0.34, 0.028, 0, 0.22, -0.09, bowWood); limbU.rotation.x = 0.32;
+    const limbL = P.part(vm.bow, 0.025, 0.34, 0.028, 0, -0.22, -0.09, bowWood); limbL.rotation.x = -0.32;
+    const strMat = new THREE.MeshBasicMaterial({ color: 0xdddddd });
+    vm.bow.userData.strU = P.part(vm.bow, 0.004, 0.1, 0.004, 0, 0, 0, strMat);
+    vm.bow.userData.strL = P.part(vm.bow, 0.004, 0.1, 0.004, 0, 0, 0, strMat);
+    vm.bow.userData.arrow = new THREE.Group();
+    P.part(vm.bow.userData.arrow, 0.008, 0.008, 0.72, 0, 0, -0.36, new THREE.MeshStandardMaterial({ color: 0x8a6a40 }));
+    P.part(vm.bow.userData.arrow, 0.02, 0.03, 0.06, 0, 0, -0.73, d);
+    P.part(vm.bow.userData.arrow, 0.002, 0.04, 0.08, 0, 0.0, -0.02, new THREE.MeshStandardMaterial({ color: 0xc0392b }));
+    vm.bow.add(vm.bow.userData.arrow);
+    P.part(vm.bow, 0.075, 0.075, 0.1, 0.0, -0.01, -0.12, skin);
+    P.part(vm.bow, 0.085, 0.085, 0.3, 0.06, -0.08, 0.08, sleeve);
+    vm.bow.rotation.z = 0.25;
     this.vm = vm;
     this.muzzle = { rifle: [0, 0.012, -0.7], pistol: [0, 0.01, -0.36], shotgun: [0, 0.02, -0.76], sniper: [0, 0.012, -0.88] };
     this.vmRoot = new THREE.Group();
@@ -232,17 +256,28 @@ FC.Player = class {
     const wl = Math.hypot(wx, wz);
     if (wl > 1) { wx /= wl; wz /= wl; }
     const k = this.onGround || this.swimming ? Math.min(1, dt * 12) : Math.min(1, dt * 2);
-    this.vel.x += (wx * spd - this.vel.x) * k;
-    this.vel.z += (wz * spd - this.vel.z) * k;
+    if (!this.gliding) {
+      this.vel.x += (wx * spd - this.vel.x) * k;
+      this.vel.z += (wz * spd - this.vel.z) * k;
+    }
     if (pr.jump && this.onGround && !this.swimming) { this.vel.y = 7; this.onGround = false; this.crouch = false; }
-    this.vel.y -= 20 * dt;
+    else if (pr.jump && !this.onGround && !this.gliding && this.vel.y < -3) { this.gliding = true; FC.Audio.ui(); this.msg('Glider deployed — look to steer, crouch to drop', '#ddd', 2.5); }
+    else if ((pr.jump || pr.crouch) && this.gliding) { this.gliding = false; this.crouch = false; }
+    if (this.gliding) {
+      // glide: forward speed from look pitch, slow sink
+      const fwd = 14 - this.pitch * 10;
+      this.vel.x += (-Math.sin(this.yaw) * fwd - this.vel.x) * Math.min(1, dt * 1.5);
+      this.vel.z += (-Math.cos(this.yaw) * fwd - this.vel.z) * Math.min(1, dt * 1.5);
+      this.vel.y += (-2.2 + this.pitch * 3.5 - this.vel.y) * Math.min(1, dt * 3);
+      this.crouch = false;
+    } else this.vel.y -= 20 * dt;
     this.pos.x += this.vel.x * dt; this.pos.z += this.vel.z * dt; this.pos.y += this.vel.y * dt;
     const r = Math.hypot(this.pos.x, this.pos.z);
     if (r > 760) { this.pos.x *= 760 / r; this.pos.z *= 760 / r; }
     W.collide(this.pos, 0.4, this.pos.y, this.crouch ? 1.2 : 1.8);
     let g = W.groundAt(this.pos.x, this.pos.z, this.pos.y, 0.4);
     if (this.swimming) g = Math.max(g, -1.35);
-    if (this.pos.y <= g) { this.pos.y = g; this.vel.y = 0; this.onGround = true; }
+    if (this.pos.y <= g) { this.pos.y = g; this.vel.y = 0; this.onGround = true; if (this.gliding) { this.gliding = false; FC.Audio.step('grass', 1.5); } }
     else if (this.pos.y - g < 0.35 && this.vel.y <= 0) { this.pos.y = g; this.vel.y = 0; this.onGround = true; }
     else this.onGround = false;
 
@@ -286,7 +321,7 @@ FC.Player = class {
     const pr = c.pressed;
     const owned = FC.WEAPON_ORDER.filter((k) => this.owned.has(k));
     let want = null;
-    for (let i = 0; i < 6; i++) if (pr['slot' + i] && this.owned.has(FC.WEAPON_ORDER[i])) want = FC.WEAPON_ORDER[i];
+    for (let i = 0; i < 7; i++) if (pr['slot' + i] && this.owned.has(FC.WEAPON_ORDER[i])) want = FC.WEAPON_ORDER[i];
     const cur = owned.indexOf(this.weapon);
     if (pr.next) want = owned[(cur + 1) % owned.length];
     if (pr.prev) want = owned[(cur - 1 + owned.length) % owned.length];
@@ -307,6 +342,20 @@ FC.Player = class {
     if (!w.throwable && (pr.reload || (a.mag === 0 && (c.fire || pr.fire))) && a.mag < w.mag && a.reserve > 0) {
       this.reloadT = w.reload * (this.has('fasthands') ? 0.7 : 1); FC.Audio.reload(); return;
     }
+    if (w.bow) {
+      // hold to draw, release to loose; arrows nock automatically
+      if (c.fire && canUse && a.mag > 0 && this.fireCd <= 0) this.drawT = Math.min(1, this.drawT + dt / 0.55);
+      else if (!c.fire && this.drawT > 0) {
+        if (this.drawT > 0.12 && a.mag > 0 && canUse) {
+          a.mag--; G.fireArrow(this, this.drawT); this.kick = 0.5; this.fireCd = w.rate; FC.Audio.bow();
+          if (a.reserve > 0) this.reloadT = w.reload;
+        }
+        this.drawT = 0;
+      }
+      if (a.mag === 0 && a.reserve > 0 && this.reloadT <= 0) this.reloadT = w.reload;
+      return;
+    }
+    this.drawT = 0;
     const trigger = w.auto ? c.fire : pr.fire;
     if (trigger && canUse && this.fireCd <= 0) {
       if (a.mag <= 0) { if (pr.fire) FC.Audio.dry(); return; }
@@ -414,6 +463,14 @@ FC.Player = class {
     const g = this.vm[this.weapon];
     g.position.set(FC.lerp(0.3, 0, a) + swayX, FC.lerp(-0.3, w.scope ? -0.2 : -0.13, a) - swayY - lower, FC.lerp(-0.42, -0.32, a) + this.kick * 0.05);
     g.rotation.set(this.kick * 0.08 + (this.reloadT > 0 ? 0.5 : 0), this.sprint ? 0.5 : 0, this.reloadT > 0 ? 0.4 : 0);
+    if (this.weapon === 'bow') {
+      const B = g.userData, nz = 0.0 + this.drawT * 0.26;
+      const setStr = (o, a, b) => { o.position.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2); const dy = b[1] - a[1], dz = b[2] - a[2]; o.scale.y = Math.hypot(dy, dz); o.rotation.x = Math.atan2(dz, dy); };
+      setStr(B.strU, [0, 0.37, -0.03], [0, 0, nz]); setStr(B.strL, [0, -0.37, -0.03], [0, 0, nz]);
+      B.arrow.visible = this.ammo.bow.mag > 0 && this.reloadT <= 0;
+      B.arrow.position.z = nz + 0.0;
+      g.position.x -= 0.2; g.position.y += 0.19; g.position.z -= 0.04; g.rotation.y = -0.05;
+    }
     const m = this.muzzle[this.weapon];
     if (m) { this.flash.position.set(m[0], m[1], m[2]).applyEuler(g.rotation).add(g.position); }
   }
@@ -436,6 +493,7 @@ FC.Player = class {
       r.root.rotation.set(0, this.yaw, 0);
       if (this.state !== 'alive') { /* death clip already playing */ }
       else if (this.climbing) r.play('Run', { speed: 0.5 });
+      else if (this.gliding) r.play('Idle_Neutral');
       else if (this.swimming) r.play('Run', { speed: 0.4 });
       else {
         const sp = this.speed, shooting = (this.firedT || 0) > 0;
@@ -446,6 +504,7 @@ FC.Player = class {
       }
       r.model.position.y = this.crouch && this.alive ? -0.35 : 0;
     }
+    this.glider.visible = this.gliding;
     r.update(dt, 0);
     // weapon in hand
     if (r.hand && this.alive) {

@@ -12,7 +12,7 @@
 
   const G = FC.G = {
     state: 'loading', time: 0, players: [], enemies: [], animals: [], civilians: [], vehicles: [], convoys: [],
-    pickups: [], projectiles: [], fires: [], pings: [], subtitles: [], floaters: [], collectibles: [],
+    pickups: [], projectiles: [], fires: [], arrows: [], allies: [], pings: [], subtitles: [], floaters: [], collectibles: [],
     split: 'vertical', godMode: false, detectMul: 1, enemyAccMul: 1, enemyDmgMul: 1, diff: null,
     reveal: new Uint8Array(64 * 64), flags: { shopped: false, convoys: 0 }, waypoints: [null, null],
     stats: { start: 0 }, saveFlash: 0, quality: 'high',
@@ -37,7 +37,7 @@
     const step = async (label, f) => { txt.textContent = label; await new Promise((r) => setTimeout(r, 30)); await f(); };
     await step('Unpacking models…', () => FC.Assets.load((k) => { bar.style.width = Math.round(k * 55) + '%'; }));
     await step('Raising Isla Brava…', () => { FC.World.build(scene); bar.style.width = '75%'; });
-    await step('Planting the jungle…', () => { FC.Env.init(scene, G.quality); FC.Foliage.build(scene); FC.FX.init(scene); bar.style.width = '90%'; });
+    await step('Planting the jungle…', () => { FC.Env.init(scene, G.quality); FC.Foliage.build(scene); FC.FX.init(scene); FC.Features.init(scene); bar.style.width = '90%'; });
     await step('Waking the island…', () => { populate(); bar.style.width = '100%'; });
     G.state = 'title';
     $('loading').classList.add('hidden');
@@ -299,6 +299,7 @@
     return { t: best, hit, head, kind };
   }
   G._hitscan = (o, d, range) => hitscan(o, d, range);
+  G.fireArrow = (p, draw) => FC.Features.fireArrow(G, p, draw);
   G.playerShoot = (p, w) => {
     const o = p.cam.getWorldPosition(new THREE.Vector3());
     const base = p.forward();
@@ -382,7 +383,7 @@
     for (const v of G.vehicles) if (!v.dead && v.pos.distanceTo(pos) < radius && v.pos.distanceTo(pos) > 0.1) v.damage(G, dmg * 1.5 * (1 - v.pos.distanceTo(pos) / radius), owner);
     for (const p of G.players) {
       const d = p.pos.distanceTo(pos);
-      if (d < radius) p.damage(70 * (1 - d / radius), x, z, G, 'explosion');
+      if (d < radius) p.damage(70 * (1 - d / radius) * (owner && owner.index === undefined ? G.enemyDmgMul : 1), x, z, G, 'explosion');
       if (d < 60) p.shake = Math.max(p.shake, 0.6 * (1 - d / 60));
     }
     for (const b of FC.World.barrels) if (!b.exploded && Math.hypot(b.x - x, b.z - z) < radius * 0.8) setTimeout(() => explodeBarrel(b, owner), 150 + Math.random() * 250);
@@ -514,6 +515,7 @@
         FC.Progression.cash(p, op.boss ? 500 : 150, 'Outpost', G);
       }
       G.revealAround(op.x, op.z, 160);
+      if (!op.boss) FC.Features.garrison(G, op, 3);
       for (const c of G.civilians) if (c.alive && c.village && FC.World.villages.indexOf(c.village) >= 0 && FC.World.outposts[c.village.link] === op) { c.state = 'cheer'; c.stateT = 0; }
       FC.Progression.save(G);
     }
@@ -525,7 +527,7 @@
     const pts = [{ x: FC.World.start.x, z: FC.World.start.z + 4 }].concat(FC.World.outposts.filter((o) => o.liberated).map((o) => ({ x: o.x + 3, z: o.z + 3 })));
     pts.sort((a, b) => Math.hypot(a.x - ref.x, a.z - ref.z) - Math.hypot(b.x - ref.x, b.z - ref.z));
     p.spawnAt(pts[0].x, pts[0].z);
-    for (const k of ['pistol', 'rifle', 'shotgun', 'sniper']) p.ammo[k].reserve = Math.max(p.ammo[k].reserve, Math.round(FC.WEAPONS[k].reserve * 0.5));
+    for (const k of ['pistol', 'bow', 'rifle', 'shotgun', 'sniper']) p.ammo[k].reserve = Math.max(p.ammo[k].reserve, Math.round(FC.WEAPONS[k].reserve * 0.5));
     p.msg('Redeployed', p.color);
     p.rig.play('Idle_Gun', { fade: 0.4 });
     for (const q of G.players) if (q !== p && q.state === 'dead') { q.spawnAt(pts[0].x + 2, pts[0].z); q.rig.play('Idle_Gun', { fade: 0.4 }); }
@@ -599,7 +601,8 @@
         if (pk.kind === 'med') { if (p.medkits >= 5) continue; p.medkits++; p.msg('+1 Medkit', '#7bed9f', 1.5); }
         else if (pk.kind === 'molotov') { const k = p.owned.has('grenade') && Math.random() < 0.5 ? 'grenade' : 'molotov'; if (p.ammo[k].mag >= FC.Progression.maxThrow(p, k)) continue; p.ammo[k].mag++; p.msg(`+1 ${FC.WEAPONS[k].name}`, '#ffb35c', 1.5); }
         else if (pk.kind === 'cash' || pk.kind === 'pelt') { FC.Progression.cash(p, pk.value, pk.kind === 'pelt' ? 'Pelt' : 'Loot', G); FC.Audio.coin(); taken = true; continue; }
-        else { for (const k of ['pistol', 'rifle', 'shotgun', 'sniper']) p.ammo[k].reserve = Math.min(FC.Progression.maxReserve(p, k), p.ammo[k].reserve + Math.ceil(FC.WEAPONS[k].mag * 0.8)); p.msg('+Ammo', '#ffd166', 1.2); }
+        else if (pk.kind === 'arrow') { if (p.ammo.bow.reserve >= FC.Progression.maxReserve(p, 'bow')) continue; p.ammo.bow.reserve++; p.msg('+1 Arrow', '#d8c8a0', 1); }
+        else { for (const k of ['pistol', 'bow', 'rifle', 'shotgun', 'sniper']) p.ammo[k].reserve = Math.min(FC.Progression.maxReserve(p, k), p.ammo[k].reserve + Math.ceil(FC.WEAPONS[k].mag * 0.8)); p.msg('+Ammo', '#ffd166', 1.2); }
         FC.Audio.pickup(); taken = true;
       }
       if (taken) { scene.remove(pk.mesh); G.pickups.splice(i, 1); }
@@ -624,6 +627,7 @@
     // convoys
     for (const c of G.convoys) c.update(dt, G);
     if (G.convoyRespawn !== undefined) { G.convoyRespawn -= dt; if (G.convoyRespawn <= 0) { G.convoyRespawn = undefined; if (G.convoys.filter((c) => !c.done).length < 2) spawnConvoy(); } }
+    FC.Features.update(dt, G);
     // rain around each camera
     // fog-of-war around players
     for (const p of G.players) G.revealAround(p.pos.x, p.pos.z, 90);
@@ -800,6 +804,7 @@
       if (!lib) return;
       const op = W.outposts[i];
       op.liberated = true; op.flag.material.color.set(0x23b38a);
+      if (!op.boss) FC.Features.garrison(G, op, 3);
       for (const e of G.enemies) if (e.outpost === op && e.alive) { e.alive = false; e.rig.root.visible = false; e.deadT = 999; }
     });
     s.towers.forEach((h, i) => { if (h) { const t = W.towers[i]; t.hacked = true; t.screen.material.emissive.set(0x23e0a0); t.blink.material.emissive.set(0x23e0a0); } });
@@ -808,7 +813,7 @@
     G.players.forEach((p, i) => {
       const d = s.players[i] || s.players[0];
       if (!d) return;
-      p.prog = d.prog; p.owned = new Set(d.owned); p.medkits = d.medkits;
+      p.prog = d.prog; p.owned = new Set(d.owned); p.owned.add('bow'); p.medkits = d.medkits;
       for (const k in d.ammo) if (p.ammo[k]) Object.assign(p.ammo[k], d.ammo[k]);
       if (d.stats) p.stats = d.stats;
       p.maxHp = 100 + (p.has('tough1') ? 25 : 0) + (p.has('tough2') ? 25 : 0); p.hp = p.maxHp;

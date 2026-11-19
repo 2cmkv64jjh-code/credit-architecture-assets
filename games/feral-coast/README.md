@@ -36,7 +36,8 @@ Choose **New Game** or **Continue**. One player gets a full-screen game; two pla
 | Move / look | WASD / Mouse | IJKL / Arrows | L-Stick / R-Stick |
 | Fire / aim | LMB / RMB | Enter / Right Shift | RT / LT |
 | Sprint / crouch / jump | Shift / C / Space | M / N / H | L3 / B / A |
-| Weapons / reload | 1–6, wheel / R | P / O | Y / X |
+| Weapons / reload | 1–7, wheel / R | P / O | Y / X |
+| Hang glider (while falling) / release | Space / Space or C | H / H or N | A / A or B |
 | Takedown · revive · use · drive | E | U | RB |
 | Tag enemy / ping spot (horn while driving) | Q | Y | LB |
 | Medkit | F | 9 | D-pad Up |
@@ -65,7 +66,12 @@ Driving: forward/back is throttle, left/right steers, jump is the handbrake and 
   - Alarm runners call reinforcements unless you cut the box first.
   - Snipers on watchtowers give away their position with a red glint.
 - **Combat.**
-  - Weapons: suppressed pistol, carbine, shotgun, scoped marksman rifle, molotovs and frag grenades.
+  - Weapons: suppressed pistol, silent recurve bow, carbine, shotgun, scoped marksman rifle, molotovs and frag grenades.
+  - The bow: hold fire to draw and release to shoot. Arrows drop with distance, kill silently and can be picked up again.
+  - Militia grunts lob grenades to flush you out of cover. A warning marker shows where they land.
+- **Traversal:** a hang glider. Jump again while falling from a relay tower, ridge or cliff, then look to steer.
+- **Rebel garrisons:** three resistance fighters hold every outpost you free and fight any militia they see.
+- **Counter-attacks:** every 6–9 minutes the Tide may try to retake a freed outpost near you. Defend it for XP and cash.
   - Silent takedowns, including chain takedowns.
   - Exploding barrels.
   - Fire that spreads through brush.

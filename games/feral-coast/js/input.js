@@ -77,7 +77,7 @@ FC.Input = (function () {
         s.fire = locked && mbtn.has(0); s.aim = locked && mbtn.has(2);
         s.reload = k('KeyR'); s.jump = k('Space'); s.crouch = k('KeyC') || k('ControlLeft');
         s.sprint = k('ShiftLeft'); s.interact = k('KeyE'); s.tag = k('KeyQ'); s.heal = k('KeyF');
-        s.slot0 = k('Digit1'); s.slot1 = k('Digit2'); s.slot2 = k('Digit3'); s.slot3 = k('Digit4'); s.slot4 = k('Digit5'); s.slot5 = k('Digit6');
+        s.slot0 = k('Digit1'); s.slot1 = k('Digit2'); s.slot2 = k('Digit3'); s.slot3 = k('Digit4'); s.slot4 = k('Digit5'); s.slot5 = k('Digit6'); s.slot6 = k('Digit7');
         s.map = k('KeyM') || k('Tab'); s.back = k('Escape');
         s.wheelNext = wheel > 0; s.wheelPrev = wheel < 0;
         s.pause = false; // Escape is handled through pointer-lock loss
@@ -114,7 +114,7 @@ FC.Input = (function () {
       }
       const edges = {};
       for (const n of ['fire', 'reload', 'jump', 'crouch', 'interact', 'tag', 'heal', 'pause', 'next',
-        'slot0', 'slot1', 'slot2', 'slot3', 'slot4', 'slot5', 'sprint', 'prevW', 'nextD', 'map', 'back', 'aim']) {
+        'slot0', 'slot1', 'slot2', 'slot3', 'slot4', 'slot5', 'slot6', 'sprint', 'prevW', 'nextD', 'map', 'back', 'aim']) {
         edges[n] = !!s[n] && !this.prev[n];
       }
       edges.next = edges.next || !!s.wheelNext || edges.nextD;

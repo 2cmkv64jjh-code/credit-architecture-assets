@@ -130,7 +130,19 @@ FC.Enemy = class {
       const d = this.pos.distanceTo(p.pos);
       if (d < bd) { bd = d; best = p; }
     }
-    return best;
+    if (best || !G.allies.length) return best;
+    // no rebel player in sight: fight the garrison
+    this.allyT = (this.allyT || 0) - 0.016;
+    if (this.allyT <= 0) {
+      this.allyT = 0.4; this.allyTarget = null;
+      let ad = 65;
+      for (const a of G.allies) {
+        if (!a.alive) continue;
+        const d = this.pos.distanceTo(a.pos);
+        if (d < ad && FC.World.los(this.pos.x, this.pos.y + 1.6, this.pos.z, a.pos.x, a.pos.y + 1.4, a.pos.z)) { ad = d; this.allyTarget = a; }
+      }
+    }
+    return this.allyTarget && this.allyTarget.alive ? this.allyTarget : null;
   }
 
   walk(dt, tx, tz, speed, face) {
@@ -335,6 +347,12 @@ FC.Enemy = class {
     } else {
       this.glint = 0;
       this.lostT += dt;
+      // flush hidden rebels out with a grenade
+      this.nadeT = (this.nadeT || FC.rand(4, 10)) - dt;
+      if (this.type === 'grunt' && this.lastKnown && this.lostT > 2 && this.lostT < 7 && this.nadeT <= 0 && !this.onTower) {
+        const d = this.pos.distanceTo(this.lastKnown);
+        if (d > 8 && d < 32 && G.projectiles.filter((q) => q.enemy).length < 2) { this.nadeT = FC.rand(14, 24); FC.Features.enemyGrenade(G, this, this.lastKnown); }
+      }
       if (this.lastKnown && !this.goSidestep(dt)) this.walk(dt, this.lastKnown.x, this.lastKnown.z, def.run * 0.8);
       if (this.lostT > 9) { this.state = 'search'; this.stateT = 0; this.detect = [0.25, 0.25]; this.bark(G, 'search'); }
     }

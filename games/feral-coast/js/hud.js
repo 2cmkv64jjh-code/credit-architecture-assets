@@ -140,6 +140,28 @@ FC.HUD = (function () {
       ctx.moveTo(cx - g - k, cy + g + k); ctx.lineTo(cx - g, cy + g); ctx.moveTo(cx + g + k, cy + g + k); ctx.lineTo(cx + g, cy + g);
       ctx.stroke();
     }
+    // bow draw meter
+    if (p.weapon === 'bow' && p.drawT > 0) {
+      ctx.strokeStyle = p.drawT >= 1 ? '#ffd166' : 'rgba(255,255,255,0.85)'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(cx, cy, 16 * s, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * p.drawT); ctx.stroke();
+    }
+    if (p.reloadT > 0) {
+      const w2 = FC.WEAPONS[p.weapon], tot = (w2.reload || 1) * (p.has('fasthands') ? 0.7 : 1);
+      ctx.strokeStyle = 'rgba(255,209,102,0.85)'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(cx, cy, 22 * s, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (1 - p.reloadT / tot)); ctx.stroke();
+    }
+    // incoming enemy grenades
+    for (const q of G.projectiles) {
+      if (!q.enemy) continue;
+      const d = q.pos.distanceTo(p.pos);
+      if (d > 12) continue;
+      const a = relAngle(p, q.pos.x, q.pos.z), R = 110 * s;
+      const gx = cx + Math.sin(a) * R, gy = cy - Math.cos(a) * R;
+      ctx.fillStyle = d < 6 ? '#ff3b30' : '#ffb020';
+      ctx.beginPath(); ctx.arc(gx, gy, 12 * s, 0, 7); ctx.fill();
+      text('!', gx, gy + 5 * s, 14 * s, '#000', 'center');
+    }
+    if (p.gliding) text(`GLIDING · ${Math.max(0, Math.round(p.pos.y - FC.World.heightAt(p.pos.x, p.pos.z)))} m · [jump] release`, cx, cy + 46 * s, 12 * s, '#9be7e1', 'center');
     G.floaters.filter((f) => f.p === p).slice(-4).forEach((f, i) => {
       ctx.globalAlpha = Math.min(1, f.t);
       text(f.text, cx + 30 * s, cy + 30 * s + i * 15 * s - (1.6 - f.t) * 10, 11 * s, f.color || '#ffd166', 'left', 600);
@@ -211,6 +233,10 @@ FC.HUD = (function () {
       text(M.current.title.toUpperCase(), mx, my, 11 * s, '#ffd166');
       text(M.current.text + dist, mx, my + 14 * s, 10.5 * s, '#eee', 'left', 600);
     }
+    if (G.defend) {
+      const D = G.defend, left = D.attackers.filter((e) => e.alive).length;
+      text(`DEFEND ${D.op.name.toUpperCase()} — ${left} attackers · ${Math.round(Math.hypot(D.op.x - p.pos.x, D.op.z - p.pos.z))}m`, rect.x + pad, rect.y + 112 * s, 11 * s, '#ff9f43');
+    }
     const lib = FC.World.outposts.filter((o) => o.liberated).length;
     text(`${FC.Env.clock()}${FC.Env.rain > 0.4 ? '  ☂' : FC.Env.night > 0.6 ? '  ☾' : '  ☀'}   ·   outposts ${lib}/10`, rect.x + pad, rect.y + 96 * s, 10.5 * s, '#ddd', 'left', 600);
     if (G.saveFlash > 0) text('● saving', rect.x + rect.w - pad, rect.y + rect.h - 80 * s, 10 * s, '#9be7a1', 'right', 600);
@@ -258,7 +284,10 @@ FC.HUD = (function () {
     const r = Math.min(rect.w, rect.h) * 0.42;
     ctx.save();
     ctx.fillStyle = '#000';
-    ctx.beginPath(); ctx.rect(rect.x, rect.y, rect.w, rect.h); ctx.arc(cx, cy, r, 0, 7, true); ctx.fill('evenodd');
+    ctx.beginPath(); ctx.rect(rect.x, rect.y, rect.w, rect.h); ctx.moveTo(cx + r, cy); ctx.arc(cx, cy, r, 0, Math.PI * 2, true); ctx.closePath(); ctx.fill('evenodd');
+    // lens edge vignette
+    const lg = ctx.createRadialGradient(cx, cy, r * 0.82, cx, cy, r); lg.addColorStop(0, 'rgba(0,0,0,0)'); lg.addColorStop(1, 'rgba(0,0,0,0.75)');
+    ctx.fillStyle = lg; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = 'rgba(0,0,0,0.9)'; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(cx - r, cy); ctx.lineTo(cx + r, cy); ctx.moveTo(cx, cy - r); ctx.lineTo(cx, cy + r); ctx.stroke();
     ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(cx - r, cy); ctx.lineTo(cx - r * 0.12, cy); ctx.moveTo(cx + r * 0.12, cy); ctx.lineTo(cx + r, cy); ctx.moveTo(cx, cy + r * 0.12); ctx.lineTo(cx, cy + r); ctx.stroke();
@@ -300,6 +329,7 @@ FC.HUD = (function () {
     if (mt) mark(mt.x, mt.z, '#ffd166', 'diamond');
     const wp = G.waypoints[p.index];
     if (wp) mark(wp.x, wp.z, p.color, 'diamond');
+    if (G.defend) mark(G.defend.op.x, G.defend.op.z, '#ff9f43', 'diamond');
     const partner = G.players.find((q) => q !== p);
     if (partner) mark(partner.pos.x, partner.pos.z, partner.color);
   }
