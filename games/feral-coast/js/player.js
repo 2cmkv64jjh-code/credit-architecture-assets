@@ -71,21 +71,13 @@ FC.Player = class {
     vm.rifle = P.rifle(); arms(vm.rifle);
     const rsup = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.22, 10), d); rsup.rotation.x = Math.PI / 2; rsup.position.set(0, 0.012, -0.78); rsup.visible = false;
     vm.rifle.add(rsup); vm.rifle.userData.sup = rsup;
-    vm.knives = new THREE.Group();
-    P.part(vm.knives, 0.012, 0.03, 0.2, 0, 0, -0.14, new THREE.MeshStandardMaterial({ color: 0xc8ccd0, metalness: 0.8, roughness: 0.3 }));
-    P.part(vm.knives, 0.02, 0.035, 0.09, 0, 0, 0.0, w);
+    vm.knives = P.upright('knife', 0.3);
     P.part(vm.knives, 0.085, 0.085, 0.34, 0.05, -0.1, 0.18, sleeve); P.part(vm.knives, 0.075, 0.075, 0.1, 0.03, -0.05, 0.03, skin);
-    vm.pistol = new THREE.Group();
-    P.part(vm.pistol, 0.045, 0.07, 0.2, 0, 0, -0.05, d); P.part(vm.pistol, 0.04, 0.12, 0.06, 0, -0.08, 0.02, d);
-    const sup = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.2, 10), d); sup.rotation.x = Math.PI / 2; sup.position.set(0, 0.01, -0.25); vm.pistol.add(sup);
-    P.part(vm.pistol, 0.085, 0.085, 0.34, 0.05, -0.1, 0.18, sleeve); P.part(vm.pistol, 0.07, 0.07, 0.09, 0.02, -0.08, 0.02, skin);
-    vm.shotgun = new THREE.Group();
-    P.part(vm.shotgun, 0.07, 0.1, 0.42, 0, 0, -0.05, d); P.part(vm.shotgun, 0.045, 0.045, 0.5, 0, 0.02, -0.5, d);
-    P.part(vm.shotgun, 0.06, 0.06, 0.24, 0, -0.04, -0.42, w); P.part(vm.shotgun, 0.06, 0.1, 0.26, 0, -0.03, 0.26, w); arms(vm.shotgun);
-    vm.sniper = new THREE.Group();
-    P.part(vm.sniper, 0.06, 0.09, 0.6, 0, 0, -0.12, w); P.part(vm.sniper, 0.03, 0.03, 0.5, 0, 0.012, -0.62, d);
-    const scope = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.035, 0.3, 12), d); scope.rotation.x = Math.PI / 2; scope.position.set(0, 0.085, -0.12); vm.sniper.add(scope);
-    P.part(vm.sniper, 0.04, 0.05, 0.05, 0, 0.05, -0.12, d); arms(vm.sniper);
+    vm.pistol = P.pistol();
+    const sup = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.2, 10), d); sup.rotation.x = Math.PI / 2; sup.position.set(0, 0.012, -0.25); vm.pistol.add(sup);
+    P.part(vm.pistol, 0.085, 0.085, 0.34, 0.05, -0.1, 0.2, sleeve); P.part(vm.pistol, 0.07, 0.07, 0.09, 0.02, -0.08, 0.04, skin);
+    vm.shotgun = P.shotgun(); arms(vm.shotgun);
+    vm.sniper = P.sniper(); arms(vm.sniper);
     vm.molotov = new THREE.Group();
     const glass = new THREE.MeshStandardMaterial({ color: 0x5b7a32, transparent: true, opacity: 0.85, roughness: 0.2 });
     const bottle = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.045, 0.17, 10), glass); bottle.position.set(0, 0, -0.05); vm.molotov.add(bottle);
@@ -94,9 +86,7 @@ FC.Player = class {
     const fl = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), new THREE.MeshStandardMaterial({ color: 0xffa040, emissive: 0xff7a20, emissiveIntensity: 6 }));
     fl.position.set(0, 0.23, -0.05); vm.molotov.add(fl);
     P.part(vm.molotov, 0.085, 0.085, 0.34, 0.05, -0.1, 0.14, sleeve); P.part(vm.molotov, 0.075, 0.075, 0.1, 0.03, -0.06, -0.03, skin);
-    vm.grenade = new THREE.Group();
-    const gr = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), new THREE.MeshStandardMaterial({ color: 0x3e4a2a, roughness: 0.6 })); gr.position.set(0, 0.02, -0.05); vm.grenade.add(gr);
-    P.part(vm.grenade, 0.02, 0.03, 0.03, 0, 0.07, -0.05, d);
+    vm.grenade = P.small('grenade', 0.11); vm.grenade.children[0].position.set(0, -0.035, -0.05);
     P.part(vm.grenade, 0.085, 0.085, 0.34, 0.05, -0.1, 0.14, sleeve); P.part(vm.grenade, 0.075, 0.075, 0.1, 0.03, -0.06, -0.03, skin);
     // bow: grip + two limbs, a string that pulls back with the draw, and a nocked arrow
     vm.bow = new THREE.Group();

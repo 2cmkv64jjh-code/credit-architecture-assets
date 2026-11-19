@@ -92,6 +92,7 @@
     };
     for (let i = 0; i < 10; i++) herd('deer', 3, 40);
     for (let i = 0; i < 5; i++) herd('stag', 1, 40);
+    for (let i = 0; i < 8; i++) herd('fox', 1, 30);
     for (let i = 0; i < 7; i++) herd('wolf', 2 + (i % 2), 70);
     for (const v of W.villages) for (let i = 0; i < 4; i++) G.civilians.push(new FC.Civilian(v, scene));
     // resistance at camp
@@ -498,7 +499,7 @@
   G.onAnimalKilled = (a, p) => {
     FC.Living.onAnimalKilled(a, p, G);
     FC.Progression.xp(p, 12, 'Hunt', G);
-    const pk = dropPickup(a.pos, 'pelt'); pk.value = (a.kind === 'stag' ? 70 : a.kind === 'wolf' ? 45 : 35) * (p.has('hunter') ? 2 : 1);
+    const pk = dropPickup(a.pos, 'pelt'); pk.value = (a.kind === 'stag' ? 70 : a.kind === 'wolf' ? 45 : a.kind === 'fox' ? 40 : 35) * (p.has('hunter') ? 2 : 1);
   };
   G.onCivilianKilled = (c, p) => {
     FC.Progression.cash(p, -100, 'Civilian casualty', G);

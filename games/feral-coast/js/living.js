@@ -44,8 +44,17 @@ FC.Living = (function () {
       this.kind = kind; this.hostile = true; this.alive = true; this.deadT = 0;
       this.hp = kind === 'croc' ? 180 : 150;
       this.pos = new THREE.Vector3(x, 0, z); this.home = { x, z }; this.yaw = Math.random() * 6; this.state = 'lurk'; this.t = 0; this.biteT = 0;
-      this.m = kind === 'croc' ? crocMesh() : sharkMesh();
-      this.rig = { size: kind === 'croc' ? { h: 0.6, len: 3.2, wid: 0.8 } : { h: 0.9, len: 3.6, wid: 0.9 }, root: this.m.g };
+      if (kind === 'shark' && FC.Assets.gltf.shark) {
+        // animated CC0 shark (Quaternius Pirate Kit), scaled to ~3.4 m long
+        const mm = FC.Rig.measure('shark');
+        this.realRig = new FC.Rig('shark', { height: 3.4 * mm.h / mm.len });
+        this.realRig.play('Swim');
+        this.m = { g: this.realRig.root };
+        this.rig = this.realRig;
+      } else {
+        this.m = kind === 'croc' ? crocMesh() : sharkMesh();
+        this.rig = { size: kind === 'croc' ? { h: 0.6, len: 3.2, wid: 0.8 } : { h: 0.9, len: 3.6, wid: 0.9 }, root: this.m.g };
+      }
       scene.add(this.m.g);
     }
     damage(G, amount, attacker) {
@@ -103,6 +112,9 @@ FC.Living = (function () {
         m.tail.forEach((s, i) => { s.rotation.y = wig * 0.25 * (i + 1) * 0.5; });
         m.jaw.rotation.x = this.state === 'attack' && d < 4 ? 0.5 + Math.sin(this.t * 14) * 0.2 : 0.05;
         m.legs.forEach((l, i) => { l.rotation.x = Math.sin(this.t * 8 + i * 1.6) * (speed > 2 ? 0.5 : 0.05); });
+      } else if (this.realRig) {
+        this.realRig.play(this.state === 'attack' ? (d < 5 ? 'Swim_Bite' : 'Swim_Fast') : 'Swim');
+        this.realRig.update(dt, nearest);
       } else m.tail.rotation.y = wig * 0.5;
     }
     flee() {}
@@ -242,7 +254,7 @@ FC.Living = (function () {
       for (let t = 0; t < 300; t++) {
         const x = (rng() * 2 - 1) * 650, z = (rng() * 2 - 1) * 650, h = W.heightAt(x, z);
         if (h < 6 || W.slopeAt(x, z) > 0.5 || W.isReserved(x, z, 30) || W.roadAt(x, z) > 0.1) continue;
-        const m = FC.Assets.propMesh('chest', { length: 1.1 });
+        const m = FC.Assets.propMesh(FC.Assets.gltf.chestGold ? 'chestGold' : 'chest', { length: 1.1 });
         m.position.set(x, h, z); m.rotation.y = rng() * 6; scene.add(m);
         L.treasures.push({ x, z, y: h, mesh: m, revealed: false, taken: false });
         break;

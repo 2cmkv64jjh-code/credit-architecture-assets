@@ -37,8 +37,7 @@ FC.Enemy = class {
     this.barkT = 0; this.route = null; this.dormant = false; this.firedT = 0;
     const s = this.def.scale || 1;
     this.rig = new FC.Rig(this.def.rig, { height: 1.8 * s, tint: this.def.tint, hide: ['Sword'] });
-    this.gun = FC.GunProps.rifle();
-    if (this.def.sniper) this.gun.scale.set(1, 1, 1.4);
+    this.gun = this.def.sniper ? FC.GunProps.sniper() : type === 'heavy' ? FC.GunProps.shotgun() : FC.GunProps.rifle();
     this.rig.root.add(this.gun);
     scene.add(this.rig.root);
     this.rig.play('Idle_Gun');
@@ -398,13 +397,13 @@ FC.Enemy = class {
 // ------------------------------------------------------------------------------------------- wildlife
 FC.Animal = class {
   constructor(kind, x, z, scene) {
-    this.kind = kind; // 'deer' | 'stag' | 'wolf'
+    this.kind = kind; // 'deer' | 'stag' | 'wolf' | 'fox'
     this.pos = new THREE.Vector3(x, FC.World.heightAt(x, z), z);
     this.home = { x, z };
     this.yaw = Math.random() * 6; this.alive = true; this.deadT = 0;
-    this.hp = kind === 'wolf' ? 70 : kind === 'stag' ? 90 : 60;
+    this.hp = kind === 'wolf' ? 70 : kind === 'stag' ? 90 : kind === 'fox' ? 35 : 60;
     this.state = 'roam'; this.cool = 0; this.moveTo = null; this.target = null; this.speedNow = 0; this.stateT = 0;
-    this.rig = new FC.Rig(kind, { height: kind === 'wolf' ? 1.0 : kind === 'stag' ? 2.0 : 1.6 });
+    this.rig = new FC.Rig(kind, { height: kind === 'wolf' ? 1.0 : kind === 'stag' ? 2.0 : kind === 'fox' ? 0.55 : 1.6 });
     this.radius = Math.max(0.4, this.rig.size.wid * 0.5);
     scene.add(this.rig.root);
     this.rig.play('Idle');

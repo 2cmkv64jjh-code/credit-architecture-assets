@@ -229,16 +229,46 @@ FC.GunProps = (function () {
   const dark = new THREE.MeshStandardMaterial({ color: 0x22252a, roughness: 0.5, metalness: 0.6 });
   const wood = new THREE.MeshStandardMaterial({ color: 0x5a3b24, roughness: 0.8 });
   function part(g, w, h, d, x, y, z, m) { const o = new THREE.Mesh(box, m); o.scale.set(w, h, d); o.position.set(x, y, z); o.castShadow = true; g.add(o); return o; }
-  function rifle() {
+  // Real CC0 gun models (Quaternius Toon Shooter Game Kit). Barrels point down -X in the source files;
+  // here they are turned to point down -Z, scaled to `len` metres, the muzzle placed at z=front and
+  // the top of the gun at y=top, matching the frame the viewmodels and hand attachments expect.
+  function model(key, len, front, top) {
     const g = new THREE.Group();
-    part(g, 0.06, 0.09, 0.5, 0, 0, -0.12, dark);
-    part(g, 0.03, 0.03, 0.34, 0, 0.012, -0.52, dark);
-    part(g, 0.045, 0.15, 0.07, 0, -0.1, -0.2, dark);
-    part(g, 0.05, 0.08, 0.22, 0, -0.02, 0.2, wood);
-    part(g, 0.05, 0.05, 0.18, 0, -0.04, -0.38, wood);
+    if (!FC.Assets.gltf[key]) return g;
+    const s = FC.Assets.staticModel(key);
+    const m = new THREE.Mesh(s.geometry, s.materials);
+    const k = len / s.size.x;
+    m.scale.setScalar(k); m.rotation.y = -Math.PI / 2;
+    m.position.set(0, top - s.size.y * k, front + len / 2);
+    m.castShadow = true;
+    g.add(m);
     return g;
   }
-  return { rifle, part, box, dark, wood };
+  // upright models (knife blade along +Y): laid down along -Z
+  function upright(key, len) {
+    const g = new THREE.Group();
+    if (!FC.Assets.gltf[key]) return g;
+    const s = FC.Assets.staticModel(key);
+    const m = new THREE.Mesh(s.geometry, s.materials);
+    m.scale.setScalar(len / s.size.y); m.rotation.x = -Math.PI / 2;
+    m.position.set(0, 0, 0.05);
+    g.add(m);
+    return g;
+  }
+  function small(key, h) {
+    const g = new THREE.Group();
+    if (!FC.Assets.gltf[key]) return g;
+    const s = FC.Assets.staticModel(key);
+    const m = new THREE.Mesh(s.geometry, s.materials);
+    m.scale.setScalar(h / s.size.y); m.position.y = -h / 2;
+    g.add(m);
+    return g;
+  }
+  const rifle = () => model('gunAK', 0.97, -0.70, 0.06);
+  const pistol = () => model('gunPistol', 0.24, -0.15, 0.04);
+  const shotgun = () => model('gunShotgun', 1.0, -0.76, 0.05);
+  const sniper = () => model('gunSniper', 1.15, -0.88, 0.13);
+  return { rifle, pistol, shotgun, sniper, model, upright, small, part, box, dark, wood };
 })();
 
 // Every live rig, for per-view distance + frustum culling (skinned meshes have frustumCulled=false

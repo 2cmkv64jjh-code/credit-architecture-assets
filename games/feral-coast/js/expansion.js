@@ -87,7 +87,7 @@ FC.Expansion = (function () {
       const s = waterSpot(d.x, d.z, 30, 140);
       if (!s) continue;
       const b = new FC.Vehicle('boat', s.x, s.z, s.yaw, scene);
-      b.home = s; G.vehicles.push(b); X.docks.push(s);
+      b.home = s; G.vehicles.push(b); s.site = d; X.docks.push(s);
     }
     // a ring of water waypoints around the island for the Tide patrol boat
     const ring = [];
@@ -419,10 +419,70 @@ FC.Expansion = (function () {
       if (p) Gm.vehicles.push(new FC.Vehicle('quad', p.x, p.z, Math.random() * 6, scene));
     }
   }
+  // ================================================================ coastal dressing
+  // CC0 Quaternius Pirate Kit props: wooden piers out to every boat mooring, shipwrecks on the
+  // reefs, beached skiffs by the villages, anchors, and shore cannons at the coastal strongholds.
+  function prop(key, k, x, y, z, yaw, tilt) {
+    if (!FC.Assets.gltf[key]) return null;
+    const s = FC.Assets.staticModel(key);
+    const m = new THREE.Mesh(s.geometry, s.materials);
+    m.scale.setScalar(k); m.position.set(x, y, z); m.rotation.set(tilt ? tilt[0] : 0, yaw, tilt ? tilt[1] : 0);
+    m.castShadow = true; m.receiveShadow = true;
+    scene.add(m);
+    return m;
+  }
+  function dressCoast() {
+    const W = FC.World, rng = FC.mulberry32(4242);
+    // piers: tiles from the shoreline out to each boat
+    for (const d of X.docks || []) {
+      const site = d.site, dx = site.x - d.x, dz = site.z - d.z, L = Math.hypot(dx, dz), ux = dx / L, uz = dz / L;
+      let shore = null;
+      for (let t = 0; t < L; t += 1) { const x = d.x + ux * t, z = d.z + uz * t; if (W.heightAt(x, z) > -0.2) { shore = t; break; } }
+      if (shore === null) continue;
+      const yaw = Math.atan2(ux, uz), tile = 2.5;
+      for (let t = shore + 1; t > 4; t -= tile) {
+        const x = d.x + ux * t, z = d.z + uz * t;
+        prop(rng() < 0.15 ? 'dockBroken' : 'dock', 1.0, x, 0.55 - 3, z, yaw);
+      }
+    }
+    // wrecks on shallow reefs
+    let wrecks = 0;
+    for (let t = 0; t < 4000 && wrecks < 3; t++) {
+      const a = rng() * Math.PI * 2, r = 560 + rng() * 180, x = Math.cos(a) * r, z = Math.sin(a) * r, h = W.heightAt(x, z);
+      if (h > -1.2 || h < -3.5 || W.isReserved(x, z, 60)) continue;
+      const m = prop('shipLarge', 1.5, x, h - 0.6, z, rng() * 6.28, [0.08, 0.32]);
+      if (m) { W.addCircle(x, z, 6, 9); wrecks++; }
+    }
+    // beached skiffs + anchors by the villages
+    for (const v of W.villages) {
+      for (let t = 0; t < 400; t++) {
+        const a = rng() * 6.28, r = 20 + rng() * 120, x = v.x + Math.cos(a) * r, z = v.z + Math.sin(a) * r, h = W.heightAt(x, z);
+        if (h < 0.1 || h > 1.2 || W.isReserved(x, z, 8)) continue;
+        prop('shipSmall', 0.9, x, h - 0.15, z, rng() * 6.28, [0, 0.35]);
+        W.addCircle(x, z, 2.2, 2);
+        prop('anchor', 1.4, x + 3, W.heightAt(x + 3, z + 1) + 0.02, z + 1, rng() * 6.28);
+        break;
+      }
+    }
+    // shore cannons: Black Pier, Old Cannery, Vael's Roost
+    for (const op of [W.outposts[7], W.outposts[3], W.outposts[9]]) {
+      for (let i = 0; i < (op === W.outposts[9] ? 4 : 2); i++) {
+        for (let t = 0; t < 200; t++) {
+          const a = rng() * 6.28, r = op.r * (0.75 + rng() * 0.35), x = op.x + Math.cos(a) * r, z = op.z + Math.sin(a) * r, h = W.heightAt(x, z);
+          if (h < 1 || W.pointBlocked(x, z, 1.5)) continue;
+          // barrel (-X in the model) points away from the outpost centre
+          prop('cannon', 1.3, x, h, z, Math.atan2(z - op.z, -(x - op.x)));
+          W.addCircle(x, z, 0.9, 1.1);
+          break;
+        }
+      }
+    }
+  }
   function init(sc, Gm) {
     scene = sc; X.scene = sc;
     buildZiplines();
     placeBoats(Gm);
+    dressCoast();
     placeLandVehicles(Gm);
     setupStory(Gm);
   }

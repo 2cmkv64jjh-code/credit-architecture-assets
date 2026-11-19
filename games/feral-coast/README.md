@@ -66,6 +66,7 @@ Driving: forward/back is throttle, left/right steers, jump is the handbrake and 
   - Alarm runners call reinforcements unless you cut the box first.
   - Snipers on watchtowers give away their position with a red glint.
 - **Combat.**
+  - Real weapon models: militia carry rifles, shotguns (heavies) or marksman rifles (snipers).
   - Weapons: suppressed pistol, silent recurve bow, carbine, shotgun, scoped marksman rifle, molotovs and frag grenades.
   - The bow: hold fire to draw and release to shoot. Arrows drop with distance, kill silently and can be picked up again.
   - Militia grunts lob grenades to flush you out of cover. A warning marker shows where they land.
@@ -120,7 +121,9 @@ Driving: forward/back is throttle, left/right steers, jump is the handbrake and 
   - They move using [Yuka](https://github.com/Mugen87/yuka) steering, so squads spread out and steer around buildings.
 - **Physics** ([Rapier](https://rapier.rs)): explosions and vehicle hits throw bodies, debris flies, and destroyed vehicles flip and tumble.
 - **Wild island:**
-  - Crocodiles in the rivers and shoreline, and sharks in deeper water.
+  - Crocodiles in the rivers and shoreline, and animated sharks in deeper water.
+  - Foxes in the woods (pelts sell to the trader).
+  - Shipwrecks on the reefs, piers out to every boat mooring, beached skiffs by the villages and shore cannons at the coastal forts.
   - Thunderstorms whose lightning can start bush fires.
   - Random encounters: executions to stop, ambushes, supply drops and a paymaster convoy.
 - **Side content:**
@@ -171,6 +174,7 @@ Driving: forward/back is throttle, left/right steers, jump is the handbrake and 
 ## Credits
 
 - 3D models and textures: **Quaternius**, **Kenney** and **Screaming Brain Studios**, all CC0 1.0 (public domain). They come via the `@netforge/asset-library-files` npm package; see `assets/NOTICE-asset-library.txt` and `assets/CC0-1.0.txt`.
+- More CC0 models by **Quaternius**, from the Toon Shooter Game Kit (guns, knife, grenades), the Pirate Kit (animated shark, shipwrecks, piers, cannons, anchor, gold chest) and Ultimate Animated Animals (fox). They were downloaded from the creator's public Google Drive folders, converted with `tools/gltf-to-glb.mjs`, meshopt-compressed with [glTF-Transform](https://gltf-transform.dev) and stored in `assets/models/`.
 - Combat music: `assets/audio/combat.mp3`, from the same CC0 library.
 - Engine: [three.js](https://threejs.org) r160 (MIT, see `vendor/THREE_LICENSE`).
 - Sound effects: [plinkfx](https://github.com/maximilianfeix/plinkfx) by Maximilian Feix. The sounds are CC0 and the player code is MIT.
