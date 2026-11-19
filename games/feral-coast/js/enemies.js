@@ -140,6 +140,9 @@ FC.Enemy = class {
     const step = Math.min(d, speed * dt);
     const nx = this.pos.x + (dx / d) * step, nz = this.pos.z + (dz / d) * step;
     if (FC.World.heightAt(nx, nz) < 0.2) { this.speedNow = 0; return true; }
+    // the rebel camp is a safe zone the militia will not enter
+    const S = FC.World.start;
+    if (Math.hypot(nx - S.x, nz - S.z) < 55 && Math.hypot(nx - S.x, nz - S.z) < Math.hypot(this.pos.x - S.x, this.pos.z - S.z)) { this.speedNow = 0; return true; }
     this.pos.x = nx; this.pos.z = nz;
     FC.World.collide(this.pos, 0.42, this.pos.y, 1.8);
     if (face !== false) this.yaw = FC.turnTowards(this.yaw, FC.yawTo(dx, dz), dt * 6);
@@ -341,7 +344,7 @@ FC.Enemy = class {
     const def = this.def;
     const muzzle = this.gun.localToWorld(new THREE.Vector3(0, 0.02, -0.7));
     FC.FX.muzzle(muzzle.x, muzzle.y, muzzle.z);
-    FC.Audio.shot(def.sound, G.volumeAt(this.pos, def.sniper ? 400 : 160) * 0.8);
+    FC.Audio.shot(def.sound, G.volumeAt(this.pos, def.sniper ? 450 : 200) * 0.8, this.pos);
     this.firedT = 0.4;
     let chance = def.acc * FC.clamp(1 - d / def.range, 0.08, 1) + 0.06;
     if (def.sniper) chance = 0.55 * (p.speed > 4 ? 0.5 : 1);
@@ -371,7 +374,7 @@ FC.Animal = class {
     this.hp = kind === 'wolf' ? 70 : kind === 'stag' ? 90 : 60;
     this.state = 'roam'; this.cool = 0; this.moveTo = null; this.target = null; this.speedNow = 0; this.stateT = 0;
     this.rig = new FC.Rig(kind, { height: kind === 'wolf' ? 1.0 : kind === 'stag' ? 2.0 : 1.6 });
-    this.radius = kind === 'wolf' ? 0.5 : 0.7;
+    this.radius = Math.max(0.4, this.rig.size.wid * 0.5);
     scene.add(this.rig.root);
     this.rig.play('Idle');
   }
@@ -381,9 +384,12 @@ FC.Animal = class {
     this.hp -= amount;
     if (this.hp <= 0) {
       this.alive = false; this.rig.play('Death', { once: true, fade: 0.1 });
+      FC.Audio.creatureDie(this.pos);
       if (attacker && attacker.index !== undefined) G.onAnimalKilled(this, attacker);
       return;
     }
+    this.rig.play(Math.random() < 0.5 ? 'Idle_HitReact_Left' : 'Idle_HitReact_Right', { fade: 0.05 });
+    this.hurtT = 0.35;
     if (this.hostile && attacker) { this.state = 'charge'; this.target = attacker; this.stateT = 0; }
     else if (!this.hostile) this.flee(attacker ? attacker.pos : this.pos);
   }
@@ -408,7 +414,7 @@ FC.Animal = class {
           if (noticed && d < bd) { bd = d; best = p; }
         }
         if (this.hostile) for (const e of G.enemies) if (e.alive && !e.dormant) { const d = e.pos.distanceTo(this.pos); if (d < bd) { bd = d; best = e; } }
-        if (best) { if (this.hostile) { this.state = 'charge'; this.target = best; this.stateT = 0; FC.Audio.growl(G.volumeAt(this.pos, 60)); } else this.flee(best.pos); }
+        if (best) { if (this.hostile) { this.state = 'charge'; this.target = best; this.stateT = 0; FC.Audio.growl(1, this.pos); } else this.flee(best.pos); }
       }
       if (!this.moveTo || Math.hypot(this.moveTo.x - this.pos.x, this.moveTo.z - this.pos.z) < 1) {
         this.idleT = FC.rand(2, 7);
@@ -421,7 +427,7 @@ FC.Animal = class {
       else {
         tx = t.pos.x; tz = t.pos.z; speed = 8.5;
         if (t.pos.distanceTo(this.pos) < 1.6) {
-          if (t instanceof FC.Player) t.damage(16, this.pos.x, this.pos.z, G);
+          if (t instanceof FC.Player) t.damage(12 * G.enemyDmgMul, this.pos.x, this.pos.z, G);
           else t.damage(G, 30, null);
           this.state = 'flee'; this.stateT = 0; this.cool = 3;
           this.fleeTo = { x: this.pos.x + (this.pos.x - t.pos.x) * 4, z: this.pos.z + (this.pos.z - t.pos.z) * 4 };
@@ -446,7 +452,9 @@ FC.Animal = class {
     r.root.position.copy(this.pos);
     r.root.rotation.set(0, this.yaw, 0);
     this.attackT = Math.max(0, (this.attackT || 0) - dt);
-    if (this.attackT > 0) r.play(this.hostile ? 'Attack' : 'Attack_Kick', { fade: 0.1 });
+    this.hurtT = Math.max(0, (this.hurtT || 0) - dt);
+    if (this.hurtT > 0) { /* hit-react clip playing */ }
+    else if (this.attackT > 0) r.play(this.hostile ? 'Attack' : 'Attack_Kick', { fade: 0.1 });
     else if (speed < 0.2) r.play(this.idlePick || (this.idlePick = Math.random() < 0.5 ? 'Idle' : 'Eating'));
     else if (speed < 3) r.play('Walk', { speed: speed / 1.4 });
     else r.play('Gallop', { speed: speed / 8 });

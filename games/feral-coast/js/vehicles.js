@@ -115,6 +115,7 @@ FC.Vehicle = class {
     if (brake) this.speed *= Math.max(0, 1 - dt * 3);
     this.speed = FC.clamp(this.speed, -9, maxF);
     this.steer += (steerIn - this.steer) * Math.min(1, dt * 6);
+    if (driver && Math.abs(this.steer) > 0.7 && Math.abs(this.speed) > 16) FC.Audio.screech(0.35);
     const turn = this.steer * FC.clamp(Math.abs(this.speed) / 6, 0, 1) * (this.kind === 'truck' ? 0.8 : 1.25) * (brake ? 1.5 : 1);
     this.yaw += turn * dt * Math.sign(this.speed || 1);
     const f = this.forward();

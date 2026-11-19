@@ -56,6 +56,7 @@ FC.Missions = (function () {
     M.current = LIST[idx] || null;
     if (M.current) {
       G.announce(`NEW MISSION — ${M.current.title}`, '#ffd166', 4);
+      FC.Audio.quest();
       for (const l of M.current.start) M.queue.push(l);
     }
   }

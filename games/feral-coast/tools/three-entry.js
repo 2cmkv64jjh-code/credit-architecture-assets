@@ -10,8 +10,13 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
+import { N8AOPass } from 'n8ao';
+import * as PLINK from 'plinkfx';
 
 window.THREE = Object.assign({}, THREE_NS, {
   GLTFLoader, MeshoptDecoder, SkeletonUtils, BufferGeometryUtils, Sky,
-  EffectComposer, RenderPass, UnrealBloomPass, OutputPass, ShaderPass,
+  EffectComposer, RenderPass, UnrealBloomPass, OutputPass, ShaderPass, SMAAPass, N8AOPass,
 });
+// plinkfx: CC0 game sound effects rendered from code (https://github.com/maximilianfeix/plinkfx)
+window.PLINK = PLINK;

@@ -74,6 +74,7 @@
     <span class="split-toggle"><button data-split="vertical" class="on">Side by side</button>
     <button data-split="horizontal">Top / bottom</button></span>
     <button id="resetSlots">Reset players</button>
+    Difficulty: <select id="difficulty"><option value="story">Story</option><option value="normal">Normal</option><option value="hard">Hard</option></select>
     Graphics: <select id="quality"><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select>
   </div>
   <div class="controls">
@@ -109,7 +110,8 @@
     <p>Stealth tip: crouch in bushes to stay hidden, tag guards, and cut the yellow alarm box before going loud.</p>
     <button id="resume">Resume</button>
     <button id="splitBtn" class="alt">Split: vertical</button>
-    <div class="row">Graphics: <select id="qualityP"><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div>
+    <div class="row">Difficulty: <select id="difficultyP"><option value="story">Story</option><option value="normal">Normal</option><option value="hard">Hard</option></select>
+    Graphics: <select id="qualityP"><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div>
     <button id="saveQuit" class="alt">Save &amp; quit to title</button>
   </div>
 </div>
@@ -128,6 +130,7 @@
 <script src="assets/assets.js"></script>
 <script src="js/util.js"></script>
 <script src="js/audio.js"></script>
+<script src="js/sfx.js"></script>
 <script src="js/input.js"></script>
 <script src="js/assets.js"></script>
 <script src="js/world.js"></script>

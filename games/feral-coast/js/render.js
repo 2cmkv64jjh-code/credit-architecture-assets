@@ -35,25 +35,40 @@ FC.Render = (function () {
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   }
 
+  // Per-viewport composers. High: N8AO ambient occlusion (renders the scene) + bloom + grade + SMAA.
+  // Medium: plain render (MSAA) + grade. Built lazily per quality level.
+  function build(cam, q) {
+    const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: q === 'high' ? 0 : 4 });
+    const composer = new THREE.EffectComposer(renderer, rt);
+    const v = { composer, q, w: 0, h: 0 };
+    if (q === 'high' && THREE.N8AOPass) {
+      try {
+        v.ao = new THREE.N8AOPass(scene, cam, 2, 2);
+        Object.assign(v.ao.configuration, { aoRadius: 2.2, distanceFalloff: 1.2, intensity: 2.2, aoSamples: 12, denoiseSamples: 6, halfRes: true, gammaCorrection: false });
+        composer.addPass(v.ao);
+      } catch (e) { v.ao = null; }
+    }
+    if (!v.ao) { v.rp = new THREE.RenderPass(scene, cam); composer.addPass(v.rp); }
+    if (q === 'high') { v.bloom = new THREE.UnrealBloomPass(new THREE.Vector2(256, 256), 0.3, 0.55, 0.9); composer.addPass(v.bloom); }
+    v.grade = new THREE.ShaderPass(GradeShader); composer.addPass(v.grade);
+    composer.addPass(new THREE.OutputPass());
+    if (q === 'high' && THREE.SMAAPass) { v.smaa = new THREE.SMAAPass(2, 2); composer.addPass(v.smaa); }
+    return v;
+  }
   function ensure(i, cam, w, h) {
     const pr = renderer.getPixelRatio();
     let v = views[i];
-    if (!v) {
-      const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 });
-      const composer = new THREE.EffectComposer(renderer, rt);
-      const rp = new THREE.RenderPass(scene, cam);
-      const bloom = new THREE.UnrealBloomPass(new THREE.Vector2(256, 256), 0.32, 0.55, 0.9);
-      const grade = new THREE.ShaderPass(GradeShader);
-      composer.addPass(rp); composer.addPass(bloom); composer.addPass(grade); composer.addPass(new THREE.OutputPass());
-      v = views[i] = { composer, rp, bloom, grade, w: 0, h: 0 };
+    if (!v || v.q !== quality) {
+      if (v) v.composer.dispose();
+      v = views[i] = build(cam, quality);
     }
-    v.rp.camera = cam;
+    if (v.rp) v.rp.camera = cam;
+    if (v.ao) v.ao.camera = cam;
     if (v.w !== w || v.h !== h) {
       v.w = w; v.h = h;
       v.composer.setPixelRatio(pr);
       v.composer.setSize(w, h);
     }
-    v.bloom.enabled = quality === 'high';
     return v;
   }
 

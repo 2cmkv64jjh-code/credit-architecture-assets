@@ -1,6 +1,6 @@
 'use strict';
-// Fully synthesized sound effects (no audio assets).
-FC.Audio = (function () {
+// Fallback synthesized sound effects (used when plinkfx is unavailable) + streamed music.
+FC.Synth = (function () {
   let ctx = null, out = null, noise = null;
 
   function init() {

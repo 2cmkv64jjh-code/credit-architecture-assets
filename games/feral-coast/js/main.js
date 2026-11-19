@@ -13,11 +13,23 @@
   const G = FC.G = {
     state: 'loading', time: 0, players: [], enemies: [], animals: [], civilians: [], vehicles: [], convoys: [],
     pickups: [], projectiles: [], fires: [], pings: [], subtitles: [], floaters: [], collectibles: [],
-    split: 'vertical', godMode: false, detectMul: 1, enemyAccMul: 1, enemyDmgMul: 1,
+    split: 'vertical', godMode: false, detectMul: 1, enemyAccMul: 1, enemyDmgMul: 1, diff: null,
     reveal: new Uint8Array(64 * 64), flags: { shopped: false, convoys: 0 }, waypoints: [null, null],
     stats: { start: 0 }, saveFlash: 0, quality: 'high',
   };
   const tmpV = new THREE.Vector3();
+  const DIFFS = {
+    story: { hp: 200, regen: 30, regenDelay: 3, fullRegen: true, dmg: 0.35, acc: 0.6, detect: 0.75 },
+    normal: { hp: 150, regen: 18, regenDelay: 4.5, fullRegen: true, dmg: 0.6, acc: 0.8, detect: 1 },
+    hard: { hp: 100, regen: 10, regenDelay: 5, fullRegen: false, dmg: 1, acc: 1, detect: 1.25 },
+  };
+  G.setDifficulty = (k) => {
+    G.diffKey = DIFFS[k] ? k : 'normal'; G.diff = DIFFS[G.diffKey];
+    G.enemyDmgMul = G.diff.dmg; G.enemyAccMul = G.diff.acc; G.detectMul = G.diff.detect;
+    try { localStorage.setItem('feralcoast_diff', G.diffKey); } catch (e) { /* ignore */ }
+  };
+  let savedDiff = 'normal'; try { savedDiff = localStorage.getItem('feralcoast_diff') || 'normal'; } catch (e) { /* ignore */ }
+  G.setDifficulty(savedDiff);
 
   // ===================================================================== loading
   async function boot() {
@@ -103,7 +115,7 @@
   }
   function spawnPatrol() {
     const W = FC.World;
-    const roads = W.roads.filter((r) => r.len > 120);
+    const roads = W.roads.filter((r) => r.len > 120 && r.a !== W.start && r.b !== W.start);
     const road = FC.pick(roads);
     const route = road.pts.filter((_, k) => k % 3 === 0);
     const full = route.concat(route.slice(1, -1).reverse());
@@ -114,7 +126,7 @@
     }
   }
   function spawnConvoy() {
-    const roads = FC.World.roads.filter((r) => r.len > 250);
+    const roads = FC.World.roads.filter((r) => r.len > 250 && r.a !== FC.World.start && r.b !== FC.World.start);
     const c = new FC.Convoy(G, FC.pick(roads), scene);
     G.convoys.push(c);
   }
@@ -237,13 +249,14 @@
   function aimAssist(p, o, d) {
     if (p.ctrl.usesMouse) return;
     let best = null, ba = 0.045;
-    for (const e of G.enemies) {
-      if (!e.alive || e.dormant) continue;
-      const c = e.chest; tmpV.subVectors(c, o);
-      if (tmpV.length() > 140) continue;
+    const consider = (c) => {
+      tmpV.subVectors(c, o);
+      if (tmpV.length() > 140) return;
       const ang = tmpV.normalize().angleTo(d);
       if (ang < ba) { ba = ang; best = tmpV.clone(); }
-    }
+    };
+    for (const e of G.enemies) if (e.alive && !e.dormant) consider(e.chest);
+    for (const a of G.animals) if (a.alive && a.hostile && a.rig.root.visible) consider(new THREE.Vector3(a.pos.x, a.pos.y + a.rig.size.h * 0.55, a.pos.z));
     if (best) d.lerp(best, 0.7).normalize();
   }
   function hitscan(o, d, range, ignoreVehicle) {
@@ -259,9 +272,14 @@
       if (t < best) { best = t; hit = e; head = false; }
     }
     for (const a of G.animals) {
-      if (!a.alive) continue;
-      const t = FC.raySphere(o.x, o.y, o.z, d.x, d.y, d.z, a.pos.x, a.pos.y + (a.kind === 'wolf' ? 0.55 : 0.95), a.pos.z, a.kind === 'wolf' ? 0.55 : 0.75);
-      if (t < best) { best = t; hit = a; head = false; }
+      if (!a.alive || !a.rig.root.visible) continue;
+      // three spheres along the body (rump, chest, head) sized from the measured model
+      const sz = a.rig.size, r = Math.max(0.35, sz.h * 0.3), fx = -Math.sin(a.yaw), fz = -Math.cos(a.yaw);
+      for (const k of [-0.3, 0, 0.32]) {
+        const cy = a.pos.y + sz.h * (k > 0.2 ? 0.75 : 0.55);
+        const t = FC.raySphere(o.x, o.y, o.z, d.x, d.y, d.z, a.pos.x + fx * sz.len * k, cy, a.pos.z + fz * sz.len * k, r);
+        if (t < best) { best = t; hit = a; head = k > 0.2; }
+      }
     }
     for (const c of G.civilians) {
       if (!c.alive) continue;
@@ -280,6 +298,7 @@
     }
     return { t: best, hit, head, kind };
   }
+  G._hitscan = (o, d, range) => hitscan(o, d, range);
   G.playerShoot = (p, w) => {
     const o = p.cam.getWorldPosition(new THREE.Vector3());
     const base = p.forward();
@@ -308,15 +327,17 @@
         FC.FX.impact(end.x, end.y, end.z, 'blood');
         anyHit = true; if (was && !h.alive) kill = true;
       } else if (h instanceof FC.Animal || h instanceof FC.Civilian) {
-        h.damage(G, w.dmg, p); FC.FX.impact(end.x, end.y, end.z, 'blood'); anyHit = true;
+        const was = h.alive;
+        h.damage(G, w.dmg * (r.head ? 2 : 1), p);
+        if (was && !h.alive) kill = true; FC.FX.impact(end.x, end.y, end.z, 'blood'); anyHit = true;
       } else if (h instanceof FC.Vehicle) {
         h.damage(G, w.dmg * 0.6, p); FC.FX.impact(end.x, end.y, end.z, 'spark');
       } else if (h) {
         h.hp -= w.dmg; FC.FX.impact(end.x, end.y, end.z, 'spark');
         if (h.hp <= 0) explodeBarrel(h, p);
       } else if (r.t < Infinity) {
-        if (end.y < 0.1 && FC.World.heightAt(end.x, end.z) < 0) FC.FX.splash(end.x, 0, end.z);
-        else FC.FX.impact(end.x, end.y, end.z, r.kind === 'box' ? 'spark' : 'dust');
+        if (end.y < 0.1 && FC.World.heightAt(end.x, end.z) < 0) { FC.FX.splash(end.x, 0, end.z); FC.Audio.splash(end); }
+        else { FC.FX.impact(end.x, end.y, end.z, r.kind === 'box' ? 'spark' : 'dust'); if (r.kind === 'box') FC.Audio.ricochet(end); else FC.Audio.impact(end); }
       }
     }
     if (anyHit) { p.hitmarker = 0.15; if (kill) { p.killmarker = 0.3; FC.Audio.kill(); } else FC.Audio.hit(); }
@@ -349,7 +370,7 @@
   }
   G.explosion = (x, y, z, radius, dmg, owner) => {
     FC.FX.explosion(x, y, z);
-    FC.Audio.explosion(Math.max(0.15, G.volumeAt(new THREE.Vector3(x, y, z), 350)));
+    FC.Audio.explosion(Math.max(0.15, G.volumeAt(new THREE.Vector3(x, y, z), 350)), new THREE.Vector3(x, y, z));
     const pos = new THREE.Vector3(x, y, z);
     for (const e of G.enemies) {
       if (!e.alive) continue;
@@ -538,7 +559,7 @@
       if (!hit && !boxHit) for (const e of G.enemies) if (e.alive && !e.dormant && e.chest.distanceTo(pr.pos) < 0.9) { hit = true; break; }
       if (hit || boxHit || pr.t > 6) {
         scene.remove(pr.mesh); G.projectiles.splice(i, 1);
-        if (pr.pos.y < 0.1 && gy < 0) { FC.FX.splash(pr.pos.x, 0, pr.pos.z); continue; }
+        if (pr.pos.y < 0.1 && gy < 0) { FC.FX.splash(pr.pos.x, 0, pr.pos.z); FC.Audio.splash(pr.pos); continue; }
         FC.Audio.glass(Math.max(0.2, G.volumeAt(pr.pos, 150)));
         igniteAt(pr.pos.x, pr.pos.z, 4.5, 9, pr.owner);
         G.noise(pr.pos, 18, pr.owner);
@@ -577,7 +598,7 @@
         if (taken || !p.alive || p.vehicle || p.pos.distanceTo(pk.pos) > 1.7) continue;
         if (pk.kind === 'med') { if (p.medkits >= 5) continue; p.medkits++; p.msg('+1 Medkit', '#7bed9f', 1.5); }
         else if (pk.kind === 'molotov') { const k = p.owned.has('grenade') && Math.random() < 0.5 ? 'grenade' : 'molotov'; if (p.ammo[k].mag >= FC.Progression.maxThrow(p, k)) continue; p.ammo[k].mag++; p.msg(`+1 ${FC.WEAPONS[k].name}`, '#ffb35c', 1.5); }
-        else if (pk.kind === 'cash' || pk.kind === 'pelt') { FC.Progression.cash(p, pk.value, pk.kind === 'pelt' ? 'Pelt' : 'Loot', G); }
+        else if (pk.kind === 'cash' || pk.kind === 'pelt') { FC.Progression.cash(p, pk.value, pk.kind === 'pelt' ? 'Pelt' : 'Loot', G); FC.Audio.coin(); taken = true; continue; }
         else { for (const k of ['pistol', 'rifle', 'shotgun', 'sniper']) p.ammo[k].reserve = Math.min(FC.Progression.maxReserve(p, k), p.ammo[k].reserve + Math.ceil(FC.WEAPONS[k].mag * 0.8)); p.msg('+Ammo', '#ffd166', 1.2); }
         FC.Audio.pickup(); taken = true;
       }
@@ -608,12 +629,21 @@
     for (const p of G.players) G.revealAround(p.pos.x, p.pos.z, 90);
     // ambience
     G.ambT = (G.ambT || 0) - dt;
-    if (G.ambT <= 0) {
+    const p0 = G.players[0];
+    if (G.ambT <= 0 && p0) {
       G.ambT = FC.rand(0.8, 3);
-      const p0 = G.players[0];
-      const inland = p0 && W.heightAt(p0.pos.x, p0.pos.z) > 3;
-      if (FC.Env.night > 0.6) FC.Audio.crickets(1); else if (inland && FC.Env.rain < 0.5) FC.Audio.birds(0.8);
+      const h0 = W.heightAt(p0.pos.x, p0.pos.z);
+      const coast = h0 < 5 && [[25, 0], [-25, 0], [0, 25], [0, -25]].some(([dx, dz]) => W.heightAt(p0.pos.x + dx, p0.pos.z + dz) < 0);
+      if (coast) FC.Audio.ambient('ocean-wave', 0.35);
+      if (FC.Env.night > 0.6) FC.Audio.crickets(1); else if (h0 > 3 && FC.Env.rain < 0.5) FC.Audio.birds(0.8);
+      if (FC.Env.rain > 0.7 && Math.random() < 0.12) FC.Audio.ambient(Math.random() < 0.7 ? 'thunder-far' : 'thunder-crack', 0.5);
     }
+    FC.Audio.loop('rain', 'rain-loop', FC.Env.rain > 0.35, 0.35);
+    FC.Audio.loop('wind', 'wind-loop', true, 0.12);
+    G.vehicles.forEach((v, i) => {
+      const driven = !v.dead && (v.seats[0] || (v.convoy && !v.convoy.alerted && G.nearestPlayerDist(v.pos) < 90));
+      FC.Audio.loop('eng' + i, 'engine-idle', !!driven, v.seats[0] ? 0.4 : 0.25 * G.volumeAt(v.pos, 90), 0.75 + Math.min(1.4, Math.abs(v.speed) / 18));
+    });
     const combat = G.enemies.some((e) => e.alive && e.alerted && !e.dormant && G.nearestPlayerDist(e.pos) < 120 && (e.sees[0] || e.sees[1]));
     G.combatT = combat ? 8 : Math.max(0, (G.combatT || 0) - dt);
     FC.Audio.music(G.combatT > 0 ? 1 : 0);
@@ -718,6 +748,11 @@
     e.stopPropagation(); G.split = b.dataset.split;
     document.querySelectorAll('[data-split]').forEach((x) => x.classList.toggle('on', x.dataset.split === G.split));
   }));
+  const diffSel = $('difficulty');
+  diffSel.value = G.diffKey;
+  diffSel.addEventListener('change', () => { G.setDifficulty(diffSel.value); $('difficultyP').value = G.diffKey; });
+  $('difficultyP').value = G.diffKey;
+  $('difficultyP').addEventListener('change', () => { G.setDifficulty($('difficultyP').value); diffSel.value = G.diffKey; });
   const qualitySel = $('quality');
   qualitySel.addEventListener('change', () => { G.quality = qualitySel.value; FC.Render.setQuality(G.quality); $('qualityP').value = G.quality; });
   $('qualityP').addEventListener('change', () => { G.quality = $('qualityP').value; FC.Render.setQuality(G.quality); qualitySel.value = G.quality; });
@@ -783,7 +818,7 @@
     G.announce('Welcome back to Isla Brava', '#ffd9a0', 4);
   }
   function setPaused(on) {
-    if (on && G.state === 'playing') { G.state = 'paused'; $('pause').classList.remove('hidden'); $('splitBtn').textContent = `Split: ${G.split}`; }
+    if (on && G.state === 'playing') { FC.Audio.stopLoops(); G.state = 'paused'; $('pause').classList.remove('hidden'); $('splitBtn').textContent = `Split: ${G.split}`; }
     else if (!on && G.state === 'paused') { G.state = 'playing'; $('pause').classList.add('hidden'); if (G.players.some((p) => p.ctrl.usesMouse)) FC.Input.lock(); }
   }
   function victory() {

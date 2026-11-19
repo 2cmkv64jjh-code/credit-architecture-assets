@@ -143,8 +143,11 @@ FC.Rig = class {
     this.root.add(this.model);
     this.model.rotation.y = opts.faceMinusZ ? 0 : Math.PI; // packs face +Z, game forward is -Z
     const h = opts.height || 1.8;
-    const base = FC.Rig.heights[name] || 1.8;
-    this.model.scale.setScalar(h / base);
+    const m = FC.Rig.measure(name);
+    const k = h / m.h;
+    this.model.scale.setScalar(k);
+    this.model.position.y = -m.minY * k;           // feet on the ground
+    this.size = { h, len: m.len * k, wid: m.wid * k }; // world-space body dimensions
     this.clips = src.clipMap;
     this.mixer = new THREE.AnimationMixer(this.model);
     this.current = null; this.currentName = '';
@@ -198,8 +201,25 @@ FC.Rig = class {
   }
   setVisible(v) { this.root.visible = v; }
 };
-// Idle-pose heights (metres) of each rig source, measured from the packs.
-FC.Rig.heights = { rebel1: 1.82, rebel2: 1.84, worker: 1.8, deer: 1.75, stag: 2.1, wolf: 1.15 };
+// Measures each source model once in its idle pose (the packs use very different native scales:
+// e.g. the worker is ~4.8 units tall, the adventurers ~1.8), so every rig can be scaled to real size.
+FC.Rig.measured = {};
+FC.Rig.measure = function (name) {
+  if (FC.Rig.measured[name]) return FC.Rig.measured[name];
+  const src = FC.Assets.gltf[name];
+  const model = THREE.SkeletonUtils.clone(src.scene);
+  const c = src.clipMap;
+  const idle = c.Idle || c.Man_Idle || c.Idle_Neutral || c.Idle_Gun || src.animations[0];
+  const mixer = new THREE.AnimationMixer(model);
+  if (idle) { mixer.clipAction(idle).play(); mixer.update(0.05); }
+  model.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(model, true);
+  const size = box.getSize(new THREE.Vector3());
+  mixer.stopAllAction();
+  const m = { h: Math.max(0.01, size.y), minY: box.min.y, len: Math.max(size.x, size.z), wid: Math.min(size.x, size.z) };
+  FC.Rig.measured[name] = m;
+  return m;
+};
 
 // Simple first-person / third-person weapon props built from primitives.
 FC.GunProps = (function () {

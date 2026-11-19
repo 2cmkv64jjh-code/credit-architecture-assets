@@ -193,7 +193,7 @@ FC.Env = (function () {
 
     tmpC.copy(fogDay).lerp(fogDusk, dusk * 0.8).lerp(fogNight, E.night).lerp(fogRain, E.rain * 0.7 * (1 - E.night * 0.7));
     scene.fog.color.copy(tmpC);
-    scene.fog.density = 0.0011 + E.rain * 0.0022 + E.night * 0.0006;
+    scene.fog.density = 0.0008 + E.rain * 0.0022 + E.night * 0.0006;
     stars.material.opacity = FC.clamp(E.night * 1.2 - 0.2, 0, 1) * (1 - E.rain);
 
     const u = waterMat.uniforms;

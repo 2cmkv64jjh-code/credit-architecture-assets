@@ -241,8 +241,10 @@ FC.HUD = (function () {
 
     if (p.state === 'downed') {
       text('DOWNED', cx, cy - 20 * s, 30 * s, '#ff6b6b', 'center');
-      text(`${partner ? partner.name + ' can revive you' : ''} — bleeding out in ${Math.ceil(p.downTimer)}s`, cx, cy + 10 * s, 14 * s, '#fff', 'center', 600);
-      if (p.reviveProgress > 0) { panel(cx - 80, cy + 24 * s, 160, 8); ctx.fillStyle = '#7bed9f'; ctx.fillRect(cx - 80, cy + 24 * s, 160 * p.reviveProgress, 8); }
+      text(`${partner && partner.alive ? partner.name + ' can revive you — ' : ''}bleeding out in ${Math.ceil(p.downTimer)}s`, cx, cy + 10 * s, 14 * s, '#fff', 'center', 600);
+      const prog = Math.max(p.reviveProgress, p.selfRevive || 0);
+      if (prog > 0) { panel(cx - 80, cy + 24 * s, 160, 8); ctx.fillStyle = '#7bed9f'; ctx.fillRect(cx - 80, cy + 24 * s, 160 * prog, 8); }
+      if (p.medkits > 0) text(`Hold [${p.ctrl.labels.interact}] to use a medkit and get up (${p.medkits} left)`, cx, cy + 50 * s, 13 * s, '#7bed9f', 'center', 600);
     } else if (p.state === 'dead') {
       panel(rect.x, rect.y, rect.w, rect.h, 0.5);
       text('WASHED OUT', cx, cy - 10 * s, 30 * s, '#ff6b6b', 'center');

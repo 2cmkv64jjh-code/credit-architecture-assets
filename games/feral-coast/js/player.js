@@ -20,7 +20,7 @@ FC.Player = class {
     this.pos = new THREE.Vector3();
     this.vel = new THREE.Vector3();
     this.yaw = 0; this.pitch = 0;
-    this.maxHp = 100; this.hp = 100; this.medkits = 2; this.lastHurt = -99;
+    this.maxHp = FC.G.diff.hp; this.hp = this.maxHp; this.medkits = 2; this.lastHurt = -99;
     this.state = 'alive';
     this.downTimer = 0; this.respawnTimer = 0; this.reviveProgress = 0;
     this.crouch = false; this.sprint = false; this.onGround = true; this.swimming = false; this.inBush = false;
@@ -106,12 +106,12 @@ FC.Player = class {
   spawnAt(x, z) {
     this.pos.set(x, FC.World.heightAt(x, z) + 0.1, z);
     this.vel.set(0, 0, 0);
-    this.hp = this.maxHp; this.state = 'alive'; this.crouch = false; this.reviveProgress = 0; this.climbing = null;
+    this.hp = this.maxHp; this.state = 'alive'; this.crouch = false; this.reviveProgress = 0; this.climbing = null; this.protectT = 3;
     if (this.vehicle) this.vehicle.exit(this);
   }
 
   damage(amount, fromX, fromZ, G, kind) {
-    if (this.state !== 'alive' || G.godMode) return;
+    if (this.state !== 'alive' || G.godMode || this.protectT > 0) return;
     if (kind === 'fire' && this.has('firewalker')) amount *= 0.3;
     if (this.vehicle && kind !== 'explosion') amount *= 0.5;
     this.hp -= amount;
@@ -125,10 +125,10 @@ FC.Player = class {
       if (this.vehicle) this.vehicle.exit(this);
       this.climbing = null;
       const partner = G.players.find((p) => p !== this);
-      if (partner && partner.alive) {
-        this.state = 'downed'; this.downTimer = 30; this.reviveProgress = 0;
-        partner.msg(`${this.name} is down! Revive them!`, '#ff6b6b', 4);
-        this.msg('You are down. Hang on for your partner.', '#ff6b6b', 4);
+      if ((partner && partner.alive) || this.medkits > 0) {
+        this.state = 'downed'; this.downTimer = partner && partner.alive ? 30 : 15; this.reviveProgress = 0; this.selfRevive = 0;
+        if (partner && partner.alive) partner.msg(`${this.name} is down! Revive them!`, '#ff6b6b', 4);
+        this.msg(this.medkits > 0 ? `Down! Hold [${this.ctrl.labels.interact}] to patch yourself up with a medkit` : 'You are down. Hang on for your partner.', '#ff6b6b', 5);
         this.rig.play('Death', { once: true });
       } else {
         this.state = 'dead'; this.respawnTimer = 5;
@@ -153,7 +153,8 @@ FC.Player = class {
     this.damageDirs = this.damageDirs.filter((d) => d.t > 0);
     for (const m of this.messages) m.t -= dt;
     this.messages = this.messages.filter((m) => m.t > 0);
-    this.maxHp = 100 + (this.has('tough1') ? 25 : 0) + (this.has('tough2') ? 25 : 0);
+    this.maxHp = G.diff.hp + (this.has('tough1') ? 25 : 0) + (this.has('tough2') ? 25 : 0);
+    this.protectT = Math.max(0, (this.protectT || 0) - dt);
 
     if (pr.map) { this.menu = this.menu ? null : 'map'; FC.Audio.ui(); FC.Menus.open(this); }
     if (this.menu) {
@@ -175,6 +176,14 @@ FC.Player = class {
     }
     if (this.state === 'downed') {
       this.downTimer -= dt;
+      if (c.interact && this.medkits > 0) {
+        this.selfRevive = (this.selfRevive || 0) + dt / 1.6;
+        if (this.selfRevive >= 1) {
+          this.medkits--; this.state = 'alive'; this.hp = this.maxHp * 0.5; this.protectT = 3; this.selfRevive = 0;
+          this.rig.play('Idle_Gun', { fade: 0.4 }); this.msg('Back on your feet', '#7bed9f'); FC.Audio.pickup();
+          return;
+        }
+      } else this.selfRevive = Math.max(0, (this.selfRevive || 0) - dt);
       if (this.downTimer <= 0) { this.state = 'dead'; this.respawnTimer = 4; this.msg('You bled out.', '#ff6b6b'); }
       this.vel.set(0, 0, 0);
       this.updateCamera(dt, G); this.updateBody(dt, G);
@@ -205,10 +214,11 @@ FC.Player = class {
       this.healT -= dt;
       if (this.healT <= 0) { this.medkits--; this.hp = this.maxHp; this.msg('Patched up', '#7bed9f', 1.5); FC.Audio.pickup(); }
     }
-    if (G.time - this.lastHurt > 4 && this.hp < this.maxHp) {
-      const cap = Math.min(this.maxHp, Math.ceil(this.hp / 25) * 25);
-      this.hp = Math.min(cap, this.hp + 10 * dt);
+    if (G.time - this.lastHurt > G.diff.regenDelay && this.hp < this.maxHp) {
+      const cap = G.diff.fullRegen ? this.maxHp : Math.min(this.maxHp, Math.ceil(this.hp / 25) * 25);
+      this.hp = Math.min(cap, this.hp + G.diff.regen * dt);
     }
+    if (this.hp < this.maxHp * 0.3 && Math.random() < dt * 1.2) FC.Audio.heartbeat();
 
     // movement
     const W = FC.World;
@@ -247,7 +257,15 @@ FC.Player = class {
     }
 
     this.inBush = FC.Foliage.inBush(this.pos.x, this.pos.z);
-    if (moving && this.onGround) this.walkPhase += dt * (this.sprint ? 13 : this.crouch ? 6 : 9);
+    if (moving && this.onGround) {
+      const before = Math.floor(this.walkPhase / Math.PI);
+      this.walkPhase += dt * (this.sprint ? 13 : this.crouch ? 6 : 9);
+      if (Math.floor(this.walkPhase / Math.PI) !== before) {
+        const h = W.heightAt(this.pos.x, this.pos.z);
+        const surf = h < 0.1 ? 'water' : this.pos.y > h + 0.3 ? 'wood' : h < 2.4 ? 'sand' : W.roadAt(this.pos.x, this.pos.z) > 0.4 || W.groundMaskAt(this.pos.x, this.pos.z) > 0.5 ? 'gravel' : W.slopeAt(this.pos.x, this.pos.z) > 0.7 ? 'stone' : 'grass';
+        FC.Audio.step(surf, this.crouch ? 0.35 : this.sprint ? 1.2 : 0.8);
+      }
+    }
     this.updateCamera(dt, G);
     this.updateBody(dt, G);
   }
@@ -287,11 +305,11 @@ FC.Player = class {
       return;
     }
     if (!w.throwable && (pr.reload || (a.mag === 0 && (c.fire || pr.fire))) && a.mag < w.mag && a.reserve > 0) {
-      this.reloadT = w.reload * (this.has('fasthands') ? 0.7 : 1); FC.Audio.click(); return;
+      this.reloadT = w.reload * (this.has('fasthands') ? 0.7 : 1); FC.Audio.reload(); return;
     }
     const trigger = w.auto ? c.fire : pr.fire;
     if (trigger && canUse && this.fireCd <= 0) {
-      if (a.mag <= 0) { if (pr.fire) FC.Audio.click(); return; }
+      if (a.mag <= 0) { if (pr.fire) FC.Audio.dry(); return; }
       this.fireCd = w.rate;
       a.mag--;
       if (w.throwable) { G.throwProjectile(this, w.throwable); this.kick = 0.4; }
