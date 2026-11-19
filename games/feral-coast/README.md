@@ -10,6 +10,16 @@ Open `index.html` in a desktop browser (Chrome, Edge or Firefox). It works strai
 
 Progress autosaves in the browser (localStorage), so **Continue** picks up where you left off.
 
+**Difficulty** (title or pause screen):
+
+| Preset | Health | Enemy damage | Regeneration |
+|---|---|---|---|
+| Story | 200 HP | about 35% | fast, full |
+| Normal (default) | 150 HP | about 60% | full |
+| Hard | 100 HP | full | partial |
+
+When you're downed, you can hold the interact key to patch yourself up with a medkit, even in solo play. The rebel camp is a safe zone the militia won't enter.
+
 ## Joining
 
 | Slot | How to join |
@@ -71,6 +81,11 @@ Driving: forward/back is throttle, left/right steers, jump is the handbrake and 
   - Cash from loot, pelts, ledgers and bounties.
   - Traders at the camp, liberated outposts and freed villages.
 - **Story missions** with radio dialogue from the resistance, leading up to the assault on Vael's Roost.
+- **Audio:** [plinkfx](https://github.com/maximilianfeix/plinkfx) CC0 sound effects, with positional gunfire, explosions and ricochets.
+  - Footsteps change by surface: grass, sand, gravel, wood, water and stone.
+  - Looping sounds: vehicle engines that rev with speed, rain and wind.
+  - Ambient sounds: surf, birds, frogs and thunder.
+  - Combat music, plus a heartbeat when your health is low.
 - **Rendering** (three.js):
   - A physical sky with a full day/night cycle (about 20 minutes per day), stars and weather.
   - Real-time sun shadows.
@@ -79,6 +94,7 @@ Driving: forward/back is throttle, left/right steers, jump is the handbrake and 
   - Wind-animated trees, bushes and grass.
   - Animated skinned characters and animals.
   - Bloom, color grading and damage effects (per viewport).
+  - On High: [N8AO](https://github.com/N8python/n8ao) ambient occlusion and SMAA anti-aliasing.
   - Quality presets.
 
 ## Code map
@@ -94,6 +110,7 @@ Driving: forward/back is throttle, left/right steers, jump is the handbrake and 
 | `js/vehicles.js` | Drivable jeeps, AI convoys |
 | `js/progression.js` | XP, skills, cash, trader, map/skills menus, save games |
 | `js/missions.js` | Story missions and radio dialogue |
+| `js/sfx.js` | Sound facade over plinkfx: positional one-shots, loops, ambience (synth fallback in `js/audio.js`) |
 | `js/hud.js` | Per-viewport HUD, compass, minimap, menus |
 | `js/render.js` | Post-processing per viewport, quality presets |
 | `js/main.js` | Game rules, combat, world systems, flow, render loop |
@@ -104,3 +121,6 @@ Driving: forward/back is throttle, left/right steers, jump is the handbrake and 
 - 3D models and textures: **Quaternius**, **Kenney** and **Screaming Brain Studios**, all CC0 1.0 (public domain). They come via the `@netforge/asset-library-files` npm package; see `assets/NOTICE-asset-library.txt` and `assets/CC0-1.0.txt`.
 - Combat music: `assets/audio/combat.mp3`, from the same CC0 library.
 - Engine: [three.js](https://threejs.org) r160 (MIT, see `vendor/THREE_LICENSE`).
+- Sound effects: [plinkfx](https://github.com/maximilianfeix/plinkfx) by Maximilian Feix. The sounds are CC0 and the player code is MIT.
+- Ambient occlusion: [N8AO](https://github.com/N8python/n8ao) (ISC), together with [postprocessing](https://github.com/pmndrs/postprocessing) (Zlib).
+- All three libraries are bundled into `vendor/three.bundle.js` by `tools/build-vendor.sh`.
