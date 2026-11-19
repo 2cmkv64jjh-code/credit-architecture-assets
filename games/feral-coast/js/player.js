@@ -157,7 +157,7 @@ FC.Player = class {
     if (this.vehicle) this.vehicle.exit(this);
   }
 
-  damage(amount, fromX, fromZ, G, kind) {
+  damage(amount, fromX, fromZ, G, kind, attacker) {
     if (this.state !== 'alive' || G.godMode || this.protectT > 0) return;
     if (kind === 'fire' && this.has('firewalker')) amount *= 0.3;
     if (this.vehicle && kind !== 'explosion') amount *= 0.5;
@@ -170,6 +170,7 @@ FC.Player = class {
     if (kind !== 'fire' || Math.random() < 0.1) FC.Audio.hurt();
     if (this.hp <= 0) {
       this.hp = 0;
+      if (FC.Modes.onPlayerKilled(G, this, attacker)) { if (this.vehicle) this.vehicle.exit(this); this.rig.play('Death', { once: true }); return; }
       if (this.vehicle) this.vehicle.exit(this);
       this.climbing = null;
       const partner = G.players.find((p) => p !== this);

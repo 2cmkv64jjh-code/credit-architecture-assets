@@ -258,8 +258,9 @@ FC.HUD = (function () {
 
     // ---------------- top: compass, mission, clock
     drawCompass(G, p, rect, s);
+    FC.Modes.hud(G, p, rect, s, text);
     const M = FC.Missions;
-    if (M.current) {
+    if (M.current && (!G.mode || G.mode === 'campaign')) {
       const mx = rect.x + pad, my = rect.y + 46 * s;
       const tgt = M.target(G);
       const dist = tgt ? ` · ${Math.round(Math.hypot(tgt.x - p.pos.x, tgt.z - p.pos.z))}m` : '';

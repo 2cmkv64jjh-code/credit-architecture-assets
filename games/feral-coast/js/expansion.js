@@ -420,7 +420,7 @@ FC.Expansion = (function () {
     }
   }
   function init(sc, Gm) {
-    scene = sc;
+    scene = sc; X.scene = sc;
     buildZiplines();
     placeBoats(Gm);
     placeLandVehicles(Gm);

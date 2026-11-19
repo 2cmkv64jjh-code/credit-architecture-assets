@@ -86,6 +86,7 @@ FC.Missions = (function () {
     }
   }
   function update(dt, G) {
+    if (G.mode && G.mode !== 'campaign') return;
     if (M.line) { M.lineT -= dt; if (M.lineT <= 0) M.line = null; }
     if (!M.line && M.queue.length) { M.line = M.queue.shift(); M.lineT = 2.2 + M.line[1].length * 0.045; FC.Audio.radio(); }
     if (!M.current) return;

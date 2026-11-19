@@ -80,6 +80,7 @@
     <span class="split-toggle"><button data-split="vertical" class="on">Side by side</button>
     <button data-split="horizontal">Top / bottom</button></span>
     <button id="resetSlots">Reset players</button>
+    Mode: <select id="mode"><option value="campaign">Campaign</option><option value="survival">Survival — defend the camp</option><option value="versus">Versus — split-screen deathmatch</option><option value="ghost">Ghost Run — stealth challenge</option></select>
     Difficulty: <select id="difficulty"><option value="story">Story</option><option value="normal">Normal</option><option value="hard">Hard</option></select>
     Graphics: <select id="quality"><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select>
   </div>
@@ -155,6 +156,7 @@
 <script src="js/vehicles.js"></script>
 <script src="js/features.js"></script>
 <script src="js/expansion.js"></script>
+<script src="js/modes.js"></script>
 <script src="js/hud.js"></script>
 <script>FC.Settings.buildPanel(document.getElementById("settingsP")); FC.Settings.buildPanel(document.getElementById("settingsT"));</script>
 <script src="js/main.js"></script>

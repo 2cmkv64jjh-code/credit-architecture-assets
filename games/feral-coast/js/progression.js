@@ -56,6 +56,7 @@ FC.Progression = (function () {
   // ---------------------------------------------------------------- save / load
   const KEY = 'feralcoast_save_v2';
   function save(G) {
+    if (G.mode && G.mode !== 'campaign') return;
     try {
       const data = {
         v: 2, time: G.time, hour: FC.Env.hour,

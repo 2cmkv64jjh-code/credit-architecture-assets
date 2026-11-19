@@ -292,6 +292,13 @@
       const t = FC.rayCyl(o.x, o.y, o.z, d.x, d.y, d.z, b.x, b.z, 0.45, b.y, b.y + 1.1);
       if (t < best) { best = t; hit = b; head = false; }
     }
+    if (G.mode === 'versus') for (const q of G.players) {
+      if (q === hitscan.shooter || !q.alive) continue;
+      let t = FC.raySphere(o.x, o.y, o.z, d.x, d.y, d.z, q.pos.x, q.pos.y + q.eyeH, q.pos.z, 0.25);
+      if (t < best) { best = t; hit = q; head = true; }
+      t = FC.rayCyl(o.x, o.y, o.z, d.x, d.y, d.z, q.pos.x, q.pos.z, 0.36, q.pos.y, q.pos.y + q.eyeH - 0.15);
+      if (t < best) { best = t; hit = q; head = false; }
+    }
     for (const v of G.vehicles) {
       if (v === ignoreVehicle) continue;
       const t = FC.raySphere(o.x, o.y, o.z, d.x, d.y, d.z, v.pos.x, v.pos.y + 1, v.pos.z, v.len * 0.45);
@@ -315,6 +322,7 @@
       const d = base.clone();
       const spread = FC.lerp(w.spread, w.ads, p.aimT) * (p.crouch ? 0.7 : 1) * (p.speed > 6 ? 1.8 : 1) + p.recoil * 0.4;
       d.x += FC.rand(-spread, spread); d.y += FC.rand(-spread, spread); d.z += FC.rand(-spread, spread); d.normalize();
+      hitscan.shooter = p;
       const r = hitscan(o, d, w.range, p.vehicle);
       const end = r.t < Infinity ? o.clone().addScaledVector(d, r.t) : o.clone().addScaledVector(d, w.range);
       if (k < 3) FC.FX.tracer(mz, end);
@@ -329,6 +337,10 @@
         h.damage(G, dmg, p, r.head);
         FC.FX.impact(end.x, end.y, end.z, 'blood');
         anyHit = true; if (was && !h.alive) kill = true;
+      } else if (h instanceof FC.Player) {
+        const was = h.alive;
+        h.damage(w.dmg * (r.head ? 2 : 1) * 0.6, p.pos.x, p.pos.z, G, 'pvp', p);
+        FC.FX.impact(end.x, end.y, end.z, 'blood'); anyHit = true; if (was && !h.alive) kill = true;
       } else if (h instanceof FC.Animal || h instanceof FC.Civilian) {
         const was = h.alive;
         h.damage(G, w.dmg * (r.head ? 2 : 1), p);
@@ -385,7 +397,7 @@
     for (const v of G.vehicles) if (!v.dead && v.pos.distanceTo(pos) < radius && v.pos.distanceTo(pos) > 0.1) v.damage(G, dmg * 1.5 * (1 - v.pos.distanceTo(pos) / radius), owner);
     for (const p of G.players) {
       const d = p.pos.distanceTo(pos);
-      if (d < radius) p.damage(70 * (1 - d / radius) * (owner && owner.index === undefined ? G.enemyDmgMul : 1), x, z, G, 'explosion');
+      if (d < radius) p.damage(70 * (1 - d / radius) * (owner && owner.index === undefined ? G.enemyDmgMul : 1), x, z, G, 'explosion', owner && owner.index !== undefined ? owner : null);
       if (d < 60) { p.shake = Math.max(p.shake, 0.6 * (1 - d / 60)); p.rumble(1 - d / 60, 0.8 * (1 - d / 60), 350); }
     }
     for (const b of FC.World.barrels) if (!b.exploded && Math.hypot(b.x - x, b.z - z) < radius * 0.8) setTimeout(() => explodeBarrel(b, owner), 150 + Math.random() * 250);
@@ -534,6 +546,7 @@
   }
 
   G.respawn = (p) => {
+    if (p.respawnHook) { const h = p.respawnHook; p.respawnHook = null; h(); p.hp = p.maxHp; p.state = 'alive'; p.rig.play('Idle_Gun', { fade: 0.4 }); return; }
     const partner = G.players.find((q) => q !== p && q.alive);
     const ref = partner ? partner.pos : p.pos;
     const pts = [{ x: FC.World.start.x, z: FC.World.start.z + 4 }].concat(FC.World.outposts.filter((o) => o.liberated).map((o) => ({ x: o.x + 3, z: o.z + 3 })));
@@ -642,6 +655,7 @@
     if (G.convoyRespawn !== undefined) { G.convoyRespawn -= dt; if (G.convoyRespawn <= 0) { G.convoyRespawn = undefined; if (G.convoys.filter((c) => !c.done).length < 2) spawnConvoy(); } }
     FC.Features.update(dt, G);
     FC.Expansion.update(dt, G);
+    FC.Modes.update(dt, G);
     // rain around each camera
     // fog-of-war around players
     for (const p of G.players) G.revealAround(p.pos.x, p.pos.z, 90);
@@ -802,7 +816,10 @@
       G.players.push(p);
     });
     G.stats.start = G.time;
-    if (save) applySave(save);
+    const mode = ($('mode') && $('mode').value) || 'campaign';
+    G.mode = mode;
+    if (mode !== 'campaign') { FC.Env.hour = mode === 'survival' ? 17.5 : 10; FC.Modes.start(G, mode); }
+    else if (save) applySave(save);
     else {
       FC.Env.hour = 7.2;
       G.revealAround(FC.World.start.x, FC.World.start.z, 200);
@@ -854,6 +871,7 @@
     $('vstats').innerHTML = G.players.map((p) => `<div class="stat" style="border-color:${p.color}"><h3 style="color:${p.color}">${p.name} · Lv ${p.prog.level}</h3>
       <p>Kills <b>${p.stats.kills}</b></p><p>Headshots <b>${p.stats.headshots}</b></p><p>Takedowns <b>${p.stats.takedowns}</b></p>
       <p>Tags <b>${p.stats.tags}</b></p><p>Revives <b>${p.stats.revives}</b></p></div>`).join('');
+    if (G.modeResult) { document.querySelector('#victory h2').textContent = G.modeResult; document.querySelector('#victory p').textContent = 'Press Space or click to return to the title.'; $('again').textContent = 'Back to title'; $('again').onclick = () => location.reload(); }
     $('victory').classList.remove('hidden');
     FC.Progression.save(G);
   }

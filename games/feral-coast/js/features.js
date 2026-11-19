@@ -173,6 +173,7 @@ FC.Features = (function () {
 
   // ---------------------------------------------------------------- counter-attacks
   function updateDefense(dt, G) {
+    if (G.mode && G.mode !== 'campaign') return;
     const lib = FC.World.outposts.filter((o) => o.liberated && !o.boss);
     if (!G.defend) {
       if (!lib.length) return;

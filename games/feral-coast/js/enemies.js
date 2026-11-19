@@ -1,4 +1,5 @@
 'use strict';
+const G_MODE = () => (FC.G && FC.G.mode) || 'campaign';
 // Ashen Tide militia AI (patrol / suspicious / search / alert / alarm-run / sniper), wildlife and villagers.
 const TIDE = { Green: 0x4a1c1c, LightGreen: 0x8c1f1f, Brown: 0x2a2a2e, Brown2: 0x1d1d21, Backpack: 0x2a2a2e };
 FC.ENEMY_TYPES = {
@@ -154,7 +155,7 @@ FC.Enemy = class {
     if (FC.World.heightAt(nx, nz) < 0.2) { this.speedNow = 0; return true; }
     // the rebel camp is a safe zone the militia will not enter
     const S = FC.World.start;
-    if (Math.hypot(nx - S.x, nz - S.z) < 55 && Math.hypot(nx - S.x, nz - S.z) < Math.hypot(this.pos.x - S.x, this.pos.z - S.z)) { this.speedNow = 0; return true; }
+    if (G_MODE() !== 'survival' && Math.hypot(nx - S.x, nz - S.z) < 55 && Math.hypot(nx - S.x, nz - S.z) < Math.hypot(this.pos.x - S.x, this.pos.z - S.z)) { this.speedNow = 0; return true; }
     this.pos.x = nx; this.pos.z = nz;
     FC.World.collide(this.pos, 0.42, this.pos.y, 1.8);
     if (face !== false) this.yaw = FC.turnTowards(this.yaw, FC.yawTo(dx, dz), dt * 6);
