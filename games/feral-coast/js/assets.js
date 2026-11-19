@@ -141,6 +141,7 @@ FC.Rig = class {
     this.root = new THREE.Group();
     this.model = THREE.SkeletonUtils.clone(src.scene);
     this.root.add(this.model);
+    FC.Rig.all.push(this);
     this.model.rotation.y = opts.faceMinusZ ? 0 : Math.PI; // packs face +Z, game forward is -Z
     const h = opts.height || 1.8;
     const m = FC.Rig.measure(name);
@@ -193,7 +194,7 @@ FC.Rig = class {
   // Updates the mixer; far-away rigs tick less often.
   update(dt, dist) {
     this.accum += dt;
-    const step = dist > 160 ? 0.2 : dist > 70 ? 0.066 : 0;
+    const step = !this.model.visible ? 0.25 : dist > 160 ? 0.2 : dist > 70 ? 0.066 : 0;
     if (this.accum >= step) { this.mixer.update(this.accum); this.accum = 0; }
   }
   handWorld(target) {
@@ -238,4 +239,29 @@ FC.GunProps = (function () {
     return g;
   }
   return { rifle, part, box, dark, wood };
+})();
+
+// Every live rig, for per-view distance + frustum culling (skinned meshes have frustumCulled=false
+// because their bind-pose bounds are wrong once animated, so culling happens on the whole model).
+FC.Rig.all = [];
+FC.Rig.cull = (function () {
+  const fr = new THREE.Frustum(), m = new THREE.Matrix4(), sph = new THREE.Sphere(), cp = new THREE.Vector3();
+  return function (cam, maxDist) {
+    m.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+    fr.setFromProjectionMatrix(m);
+    cam.getWorldPosition(cp);
+    const md2 = maxDist * maxDist, all = FC.Rig.all;
+    for (let i = all.length - 1; i >= 0; i--) {
+      const r = all[i];
+      if (!r.root.parent) { if (r._attached && (r._detT = (r._detT || 0) + 1) > 120) all.splice(i, 1); continue; }
+      r._attached = true; r._detT = 0;
+      const e = r.root.matrixWorld.elements;
+      sph.center.set(e[12], e[13] + 1, e[14]);
+      sph.radius = Math.max(2, (r.size ? Math.max(r.size.h, r.size.len) : 2) * 0.8);
+      const d2 = sph.center.distanceToSquared(cp);
+      const vis = d2 < md2 && fr.intersectsSphere(sph);
+      r.model.visible = vis;
+      if (vis) r._seenT = 0;
+    }
+  };
 })();

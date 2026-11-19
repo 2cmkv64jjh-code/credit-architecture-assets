@@ -119,7 +119,7 @@ FC.Foliage = (function () {
         mesh.receiveShadow = true;
         const [gx, gz] = k.split(',').map(Number);
         mesh.userData.center = new THREE.Vector3((gx + 0.5) * SC, 0, (gz + 0.5) * SC);
-        mesh.userData.far = T.h[1] > 4 ? 900 : key === 'flower' ? 160 : 380;
+        mesh.userData.far = T.h[1] > 4 ? 620 : key === 'flower' ? 160 : 380;
         scene.add(mesh);
         groups.push(mesh);
       }

@@ -747,7 +747,7 @@
       titleCam.lookAt(cx * 0.2, 30, cz - 260);
       titleCam.aspect = W / H; titleCam.updateProjectionMatrix();
       FC.Foliage.updateStreaming([titleCam.position]);
-      FC.Env.prepareView(titleCam); FC.Foliage.prepareView(titleCam);
+      titleCam.updateMatrixWorld(); FC.Env.prepareView(titleCam); FC.Foliage.prepareView(titleCam); FC.Rig.cull(titleCam, 240);
       FC.FX.setView(H * renderer.getPixelRatio(), titleCam.fov);
       FC.Render.renderView(0, titleCam, { x: 0, y: 0, w: W, h: H }, H, null);
       return;
@@ -757,7 +757,7 @@
     G.players.forEach((p, i) => {
       const r = rs[i];
       if (Math.abs(p.cam.aspect - r.w / r.h) > 0.001) { p.cam.aspect = r.w / r.h; p.cam.updateProjectionMatrix(); }
-      FC.Env.prepareView(p.cam); FC.Foliage.prepareView(p.cam);
+      p.cam.updateMatrixWorld(); FC.Env.prepareView(p.cam); FC.Foliage.prepareView(p.cam); FC.Rig.cull(p.cam, FC.Render.quality === 'low' ? 160 : 240);
       FC.FX.setView(r.h * renderer.getPixelRatio(), p.cam.fov);
       const fx = { damage: p.alive ? FC.clamp(1 - p.hp / (p.maxHp * 0.4), 0, 1) : 0, down: p.state === 'downed' ? 1 : p.state === 'dead' ? 1 : 0, flash: (FC.Render.fade || 0) };
       FC.Render.renderView(i, p.cam, r, H, fx);

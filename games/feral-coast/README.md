@@ -36,7 +36,7 @@ Choose **New Game** or **Continue**. One player gets a full-screen game; two pla
 | Move / look | WASD / Mouse | IJKL / Arrows | L-Stick / R-Stick |
 | Fire / aim | LMB / RMB | Enter / Right Shift | RT / LT |
 | Sprint / crouch / jump | Shift / C / Space | M / N / H | L3 / B / A |
-| Weapons / reload | 1–7, wheel / R | P / O | Y / X |
+| Weapons / reload | 1–8, wheel / R | P / O | Y / X |
 | Hang glider (while falling) / release | Space / Space or C | H / H or N | A / A or B |
 | Takedown · revive · use · drive | E | U | RB |
 | Tag enemy / ping spot (horn while driving) | Q | Y | LB |
@@ -101,6 +101,35 @@ Driving: forward/back is throttle, left/right steers, jump is the handbrake and 
   - Looping sounds: vehicle engines that rev with speed, rain and wind.
   - Ambient sounds: surf, birds, frogs and thunder.
   - Combat music, plus a heartbeat when your health is low.
+- **Game modes** (title screen):
+  - **Campaign:** the story, with saves and New Game+ (harder militia, your gear kept).
+  - **Survival:** hold the rebel camp against endless, growing waves.
+  - **Versus:** split-screen deathmatch in the Old Cannery, first to 10.
+  - **Ghost run:** clear Saltmarsh Dock unseen against the clock for gold, silver or bronze.
+- **Difficulty:** Story, Normal and Hard change health, enemy damage and how fast guards spot you.
+- **More vehicles:** a gyrocopter (camp, Tidewater, Ironbark), quad bikes, and a jeep-mounted machine gun with overheating for the passenger.
+- **More combat:**
+  - Throwing knives.
+  - Death-from-above takedowns.
+  - Binoculars (hold tag) that mark everyone you look at.
+  - Weapon attachments from the trader: suppressors, a rifle sight and extended magazines.
+  - Trees and rocks stop bullets and block line of sight.
+- **Smarter militia:**
+  - Soldiers run to cover, crouch behind low walls and peek out to shoot.
+  - Some deliberately flank you.
+  - They move using [Yuka](https://github.com/Mugen87/yuka) steering, so squads spread out and steer around buildings.
+- **Physics** ([Rapier](https://rapier.rs)): explosions and vehicle hits throw bodies, debris flies, and destroyed vehicles flip and tumble.
+- **Wild island:**
+  - Crocodiles in the rivers and shoreline, and sharks in deeper water.
+  - Thunderstorms whose lightning can start bush fires.
+  - Random encounters: executions to stop, ambushes, supply drops and a paymaster convoy.
+- **Side content:**
+  - 4 named bounty targets.
+  - 5 buried treasures revealed by ledgers.
+  - 4 village side quests.
+  - Crafting from pelts: ammo, a bigger bag, medkits.
+  - Camp upgrades: sentries, a garage and an infirmary.
+- **Settings:** field of view, mouse and gamepad sensitivity, invert Y, volume, subtitle size, colorblind-friendly markers, an FPS counter and gamepad rumble.
 - **Rendering** (three.js):
   - A physical sky with a full day/night cycle (about 20 minutes per day), stars and weather.
   - Real-time sun shadows.
@@ -111,6 +140,7 @@ Driving: forward/back is throttle, left/right steers, jump is the handbrake and 
   - Bloom, color grading and damage effects (per viewport).
   - On High: [N8AO](https://github.com/N8python/n8ao) ambient occlusion and SMAA anti-aliasing.
   - Quality presets.
+  - Characters are culled by distance and view per split-screen view, which keeps frame times low with 100+ actors.
 
 ## Code map
 
@@ -128,6 +158,11 @@ Driving: forward/back is throttle, left/right steers, jump is the handbrake and 
 | `js/sfx.js` | Sound facade over plinkfx: positional one-shots, loops, ambience (synth fallback in `js/audio.js`) |
 | `js/features.js` | Bow arrows, rebel garrisons, counter-attacks, enemy grenades |
 | `js/expansion.js` | Ziplines, boats, patrol boat, reinforcement trucks, wolf companion, story set pieces |
+| `js/settings.js` | Player settings (FOV, sensitivity, audio, accessibility) and the settings panel |
+| `js/modes.js` | Survival, versus and ghost-run modes |
+| `js/living.js` | Crocodiles and sharks, storms, random events, bounties, treasure, village quests, crafting hooks |
+| `js/physics.js` | Rapier world: terrain heightfield, building colliders, thrown bodies, debris, wrecks |
+| `js/ai.js` | Cover points, cover and flank selection, peek cycle, Yuka steering |
 | `js/hud.js` | Per-viewport HUD, compass, minimap, menus |
 | `js/render.js` | Post-processing per viewport, quality presets |
 | `js/main.js` | Game rules, combat, world systems, flow, render loop |
@@ -140,4 +175,6 @@ Driving: forward/back is throttle, left/right steers, jump is the handbrake and 
 - Engine: [three.js](https://threejs.org) r160 (MIT, see `vendor/THREE_LICENSE`).
 - Sound effects: [plinkfx](https://github.com/maximilianfeix/plinkfx) by Maximilian Feix. The sounds are CC0 and the player code is MIT.
 - Ambient occlusion: [N8AO](https://github.com/N8python/n8ao) (ISC), together with [postprocessing](https://github.com/pmndrs/postprocessing) (Zlib).
-- All three libraries are bundled into `vendor/three.bundle.js` by `tools/build-vendor.sh`.
+- Physics: [Rapier](https://rapier.rs) (`@dimforge/rapier3d-compat`, Apache-2.0). Steering: [Yuka](https://github.com/Mugen87/yuka) (MIT). Both are bundled into `vendor/physics.bundle.js`.
+- Recorded gun sounds: CC0 packs from OpenGameArt; see `assets/sounds/CREDITS.md`.
+- three.js, plinkfx, N8AO and postprocessing are bundled into `vendor/three.bundle.js` by `tools/build-vendor.sh`.
