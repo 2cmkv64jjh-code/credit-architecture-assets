@@ -74,7 +74,7 @@ Driving: forward/back is throttle, left/right steers, jump is the handbrake and 
   - The driver steers and the passenger shoots.
   - A militia gunboat patrols the coast with two gunners.
 - **Ziplines:** cables run from every relay tower down to nearby outposts and villages. Interact at the platform edge to ride, shoot while sliding, and jump off mid-ride to open the glider.
-- **Tide gunship:** an alarm at any of the bigger outposts (and Vael's last stand) calls in a helicopter gunship 15 seconds later. It circles you while a door gunner fires bursts. Get under cover or shoot it down for 250 XP.
+- **Tide gunship:** an alarm at any of the bigger outposts (and Vael's last stand) calls in a helicopter gunship 15 seconds later. It circles you while a door gunner fires bursts. Get under cover or shoot it down for 250 XP. A health bar and marker track it, and at night it sweeps a searchlight.
 - **Alarm reinforcements:** a tripped alarm sends militia trucks racing in along the roads. The soldiers jump out when they arrive or spot you, and you can ambush the trucks on the way.
 - **Wolf companion:** Fang (Ash for player 2) comes from the "Wolf at the Door" mission or the trader for $350.
   - Tagging an enemy sends the wolf after them, and unaware guards die silently.
@@ -127,7 +127,7 @@ Driving: forward/back is throttle, left/right steers, jump is the handbrake and 
   - Black bears in the high forest: they charge if you get close (crouch to sneak past) and give up after a while.
   - Flocks of parrots circle the jungle and scatter when shooting starts.
   - Wolves howl at night.
-  - Shipwrecks on the reefs, piers out to every boat mooring, beached skiffs by the villages and shore cannons at the coastal forts.
+  - Shipwrecks on the reefs, walkable piers out to every boat mooring, beached skiffs by the villages and shore cannons at the coastal forts.
   - Thunderstorms whose lightning can start bush fires.
   - Random encounters: executions to stop, ambushes, supply drops and a paymaster convoy.
 - **Side content:**

@@ -96,6 +96,16 @@ FC.HUD = (function () {
       const sp = project(p, e.headPos.add(v3.set(0, 0.9, 0)), rect);
       if (sp) text(`☠ ${e.bounty}`, sp.x, sp.y, 11 * s, '#ffd166', 'center');
     }
+    // Tide gunship: marker on the aircraft + health bar at the top of the view
+    const gs = FC.Expansion.gunship;
+    if (gs && !gs.dead && gs.pos.distanceTo(p.pos) < 700) {
+      const sp = project(p, v3.set(gs.pos.x, gs.pos.y + 4, gs.pos.z).clone(), rect);
+      if (sp) { diamond(sp.x, sp.y, 6 * s, '#ff5a4f'); text('GUNSHIP', sp.x, sp.y - 10 * s, 10 * s, '#ff8a80', 'center'); }
+      const bw = Math.min(260 * s, rect.w * 0.4), bx = rect.x + rect.w / 2 - bw / 2, by = rect.y + 64 * s;
+      panel(bx - 3, by - 3, bw + 6, 12 * s + 6, 0.55);
+      ctx.fillStyle = '#ff5a4f'; ctx.fillRect(bx, by, bw * FC.clamp(gs.hp / gs.maxHp, 0, 1), 12 * s);
+      text('TIDE GUNSHIP', rect.x + rect.w / 2, by + 10 * s, 9 * s, '#fff', 'center');
+    }
     for (const q of FC.Living.quests) {
       const pts = [];
       if (q.state === 'open' || q.state === 'ready') pts.push([q.giver, q.state === 'open' ? '! ' + q.title : '✓ hand in']);

@@ -725,7 +725,7 @@ FC.World = (function () {
   }
 
   return Object.assign(W, {
-    build, heightAt, slopeAt, raycast, los, collide, groundAt, pointBlocked, queryCircles, addCircle,
+    build, heightAt, slopeAt, raycast, los, collide, groundAt, pointBlocked, queryCircles, addCircle, addCollider,
     roadAt: (x, z) => maskAt(ROAD, x, z), groundMaskAt: (x, z) => maskAt(GROUND, x, z), nearestRoadPoint, boxesIn,
     isReserved(x, z, pad) {
       for (const op of OUTPOSTS) if (Math.hypot(x - op.x, z - op.z) < op.r + pad) return true;

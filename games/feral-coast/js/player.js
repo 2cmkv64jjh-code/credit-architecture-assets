@@ -280,7 +280,7 @@ FC.Player = class {
     let spd = this.crouch ? 3.0 : this.sprint ? 9.5 : 5.6;
     if (this.aimT > 0.5) spd *= 0.6;
     const ground = W.heightAt(this.pos.x, this.pos.z);
-    this.swimming = ground < -1.3;
+    this.swimming = ground < -1.3 && this.pos.y < 0.1; // standing on a pier deck is not swimming
     if (this.swimming) spd = 3.6; else if (ground < 0) spd *= 0.75;
     const sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
     let wx = cy * c.mx - sy * c.my, wz = -sy * c.mx - cy * c.my;

@@ -443,7 +443,9 @@ FC.Expansion = (function () {
       const yaw = Math.atan2(ux, uz), tile = 2.5;
       for (let t = shore + 1; t > 4; t -= tile) {
         const x = d.x + ux * t, z = d.z + uz * t;
-        prop(rng() < 0.15 ? 'dockBroken' : 'dock', 1.0, x, 0.55 - 3, z, yaw);
+        prop(rng() < 0.15 ? 'dockBroken' : 'dock', 1.0, x, 0.4 - 2.49, z, yaw); // plank tops sit 2.49 above the post bottoms
+        // walkable deck: a thin collider just under the planks (too low to count as cover)
+        W.addCollider({ minX: x - 1.25, maxX: x + 1.25, minZ: z - 1.25, maxZ: z + 1.25, minY: 0.12, maxY: 0.4, deck: true });
       }
     }
     // wrecks on shallow reefs
@@ -497,6 +499,9 @@ FC.Expansion = (function () {
     const disc = new THREE.Mesh(new THREE.CircleGeometry(6, 24), new THREE.MeshBasicMaterial({ color: 0x222222, transparent: true, opacity: 0.18, depthWrite: false, side: THREE.DoubleSide }));
     disc.rotation.x = -Math.PI / 2; blades.add(disc);
     body.add(blades);
+    // night searchlight: an additive light cone under the nose that sweeps toward the target
+    const beam = new THREE.Mesh(new THREE.ConeGeometry(7, 34, 20, 1, true), new THREE.MeshBasicMaterial({ color: 0xfff2c0, transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    beam.geometry.translate(0, -17, 0); beam.visible = false; v.group.add(beam); v.beam = beam;
     v.mesh = body; v.group.add(body);
     v.len = 9; v.wid = 3; v.hp = v.maxHp = 950; v.patrol = true; v.gunship = true;
     v.pos.y = FC.World.heightAt(sx, sz) + 60; v.op = op; v.life = 150; v.burstT = 2; v.shotT = 0; v.orbitA = a;
@@ -525,6 +530,8 @@ FC.Expansion = (function () {
       v.pos.y += ((gy + (leaving ? 70 : 30)) - v.pos.y) * Math.min(1, dt * 0.7);
       v.pitch = FC.clamp(v.speed / 32, 0, 1) * 0.18; v.roll = Math.sin(v.orbitA * 3) * 0.06;
       v.group.position.copy(v.pos); v.group.rotation.set(v.pitch, v.yaw, v.roll, 'YXZ');
+      v.beam.visible = (FC.Env.night || 0) > 0.45 && !leaving;
+      if (v.beam.visible && tgt) { const lp = v.group.worldToLocal(tgt.pos.clone()); v.beam.rotation.set(0, 0, 0); v.beam.lookAt(lp.x, lp.y, lp.z); v.beam.rotateX(-Math.PI / 2); }
       if (leaving && bd > 600) { v.dead = true; scene.remove(v.group); const i = G2.vehicles.indexOf(v); if (i >= 0) G2.vehicles.splice(i, 1); X.gunship = null; return; }
       // door gunner: bursts at the target while it is in sight
       if (tgt && !leaving && bd < 160) {
