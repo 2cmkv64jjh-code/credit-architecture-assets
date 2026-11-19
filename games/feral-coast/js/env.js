@@ -25,7 +25,7 @@ FC.Env = (function () {
     sun.shadow.mapSize.set(2048, 2048);
     sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.06;
     scene.add(sun); scene.add(sun.target);
-    hemi = new THREE.HemisphereLight(0xcfe6ff, 0x4d5a36, 0.9);
+    hemi = new THREE.HemisphereLight(0xdfe8f0, 0x5a5a3a, 0.9);
     scene.add(hemi);
     amb = new THREE.AmbientLight(0xffffff, 0.08);
     scene.add(amb);
@@ -42,6 +42,7 @@ FC.Env = (function () {
     stars = new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xffffff, size: 2, sizeAttenuation: false, transparent: true, opacity: 0, fog: false, depthWrite: false }));
     scene.add(stars);
     buildWater();
+    buildRain();
     setQuality(quality);
   }
 
@@ -53,6 +54,31 @@ FC.Env = (function () {
       sun.shadow.mapSize.set(s, s);
       if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
     }
+  }
+
+  // ---------------- rain streaks (a box of falling lines that follows each camera) ----------------
+  let rain, rainMat;
+  function buildRain() {
+    const n = 2600, pos = new Float32Array(n * 6), seed = new Float32Array(n * 2);
+    for (let i = 0; i < n; i++) {
+      const x = FC.rand(-22, 22), y = FC.rand(0, 26), z = FC.rand(-22, 22);
+      pos.set([x, y, z, x - 0.08, y + 0.75, z], i * 6);
+      seed[i * 2] = seed[i * 2 + 1] = Math.random();
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.setAttribute('seed', new THREE.BufferAttribute(seed, 1));
+    rainMat = new THREE.ShaderMaterial({
+      uniforms: { uTime: { value: 0 }, uAmount: { value: 0 }, uColor: { value: new THREE.Color(0.75, 0.8, 0.88) } },
+      transparent: true, depthWrite: false,
+      vertexShader: `attribute float seed; uniform float uTime; varying float vA;
+        void main(){ vec3 p = position; float fall = mod(p.y - uTime * (20.0 + seed * 6.0), 26.0) - 6.0; p.y = fall + (position.y - floor(position.y)) * 0.0;
+          vA = step(seed, 1.0); gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0); }`,
+      fragmentShader: `uniform float uAmount; uniform vec3 uColor; varying float vA; void main(){ gl_FragColor = vec4(uColor, 0.35 * uAmount); }`,
+    });
+    rain = new THREE.LineSegments(g, rainMat);
+    rain.frustumCulled = false; rain.renderOrder = 3;
+    scene.add(rain);
   }
 
   // ---------------- ocean ----------------
@@ -162,7 +188,7 @@ FC.Env = (function () {
     }
     E.lightDirC = (E.lightDirC || new THREE.Vector3()).copy(E.lightDir);
     hemi.intensity = 0.25 + 0.75 * day * (1 - E.rain * 0.3);
-    hemi.color.setRGB(0.55 + 0.25 * day, 0.62 + 0.28 * day, 0.85 + 0.15 * day);
+    hemi.color.setRGB(0.6 + 0.3 * day, 0.65 + 0.28 * day, 0.8 + 0.12 * day);
     amb.intensity = 0.06 + 0.04 * E.night;
 
     tmpC.copy(fogDay).lerp(fogDusk, dusk * 0.8).lerp(fogNight, E.night).lerp(fogRain, E.rain * 0.7 * (1 - E.night * 0.7));
@@ -178,6 +204,10 @@ FC.Env = (function () {
     u.uNight.value = E.night * 0.8;
     u.uRain.value = E.rain;
     if (FC.Foliage) FC.Foliage.setTime(u.uTime.value, 1 + E.rain * 1.8);
+    rainMat.uniforms.uTime.value = u.uTime.value;
+    rainMat.uniforms.uAmount.value = FC.smoothstep(0.1, 0.8, E.rain);
+    rainMat.uniforms.uColor.value.setRGB(0.75, 0.8, 0.88).multiplyScalar(1 - E.night * 0.7);
+    rain.visible = E.rain > 0.1;
   }
   const tmpV = new THREE.Vector3(), tmpV2 = new THREE.Vector3();
 
@@ -193,6 +223,7 @@ FC.Env = (function () {
     sun.position.set(sx + E.lightDirC.x * 300, cy + E.lightDirC.y * 300, sz + E.lightDirC.z * 300);
     sun.target.updateMatrixWorld();
     sky.position.copy(cam.position);
+    rain.position.copy(cam.position);
     stars.position.copy(cam.position);
     water.position.x = Math.round(cam.position.x / 50) * 50;
     water.position.z = Math.round(cam.position.z / 50) * 50;

@@ -86,7 +86,7 @@ FC.Player = class {
     this.vm = vm;
     this.muzzle = { rifle: [0, 0.012, -0.7], pistol: [0, 0.01, -0.36], shotgun: [0, 0.02, -0.76], sniper: [0, 0.012, -0.88] };
     this.vmRoot = new THREE.Group();
-    this.vmRoot.scale.setScalar(0.72);
+    this.vmRoot.scale.setScalar(0.6);
     this.cam.add(this.vmRoot);
     for (const k in vm) { vm[k].traverse((o) => { if (o.isMesh) o.castShadow = false; }); this.vmRoot.add(vm[k]); }
     const flashMat = new THREE.MeshBasicMaterial({ color: 0xffd28a, transparent: true, opacity: 0.95, depthWrite: false, blending: THREE.AdditiveBlending });
@@ -394,7 +394,7 @@ FC.Player = class {
     const swayX = Math.cos(this.walkPhase * 0.5) * bobA * 0.5, swayY = Math.abs(Math.sin(this.walkPhase)) * bobA * 0.4;
     const lower = (this.sprint ? 0.12 : 0) + (this.swimming ? 0.35 : 0) + (this.reloadT > 0 ? 0.12 : 0) + this.switchT * 0.5 + (this.healT > 0 ? 0.3 : 0);
     const g = this.vm[this.weapon];
-    g.position.set(FC.lerp(0.24, 0, a) + swayX, FC.lerp(-0.24, w.scope ? -0.2 : -0.118, a) - swayY - lower, FC.lerp(-0.4, -0.3, a) + this.kick * 0.05);
+    g.position.set(FC.lerp(0.3, 0, a) + swayX, FC.lerp(-0.3, w.scope ? -0.2 : -0.13, a) - swayY - lower, FC.lerp(-0.42, -0.32, a) + this.kick * 0.05);
     g.rotation.set(this.kick * 0.08 + (this.reloadT > 0 ? 0.5 : 0), this.sprint ? 0.5 : 0, this.reloadT > 0 ? 0.4 : 0);
     const m = this.muzzle[this.weapon];
     if (m) { this.flash.position.set(m[0], m[1], m[2]).applyEuler(g.rotation).add(g.position); }

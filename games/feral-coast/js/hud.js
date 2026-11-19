@@ -1,7 +1,7 @@
 'use strict';
 // 2D overlay drawn per split-screen viewport: combat HUD, compass, minimap, missions, menus (map / skills / shop).
 FC.HUD = (function () {
-  let cv, ctx, dpr = 1;
+  let cv, ctx, dpr = 1, fogC = null;
   const FONT = "'Trebuchet MS', 'Segoe UI', system-ui, sans-serif";
   const v3 = new THREE.Vector3();
 
@@ -388,9 +388,12 @@ FC.HUD = (function () {
     ctx.beginPath(); ctx.rect(ox, oy, size, size); ctx.clip();
     ctx.drawImage(FC.World.mapCanvas, ox, oy, size, size);
     // fog of war
-    ctx.fillStyle = 'rgba(10,16,22,0.78)';
-    const cell = size / 64;
-    for (let j = 0; j < 64; j++) for (let i = 0; i < 64; i++) if (!G.reveal[j * 64 + i]) ctx.fillRect(ox + i * cell - 0.5, oy + j * cell - 0.5, cell + 1, cell + 1);
+    if (!fogC) { fogC = document.createElement('canvas'); fogC.width = fogC.height = 64; }
+    const fctx = fogC.getContext('2d'), img = fctx.createImageData(64, 64);
+    for (let i = 0; i < 4096; i++) { img.data[i * 4] = 10; img.data[i * 4 + 1] = 16; img.data[i * 4 + 2] = 22; img.data[i * 4 + 3] = G.reveal[i] ? 0 : 205; }
+    fctx.putImageData(img, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(fogC, ox, oy, size, size);
     for (const poi of G.pois()) {
       if (!G.isRevealed(poi.x, poi.z) && !poi.always) continue;
       const q = toS(poi.x, poi.z), col = poiColor(poi);

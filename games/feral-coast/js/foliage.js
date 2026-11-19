@@ -8,7 +8,7 @@ FC.Foliage = (function () {
   const bushes = []; const bushGrid = new Map(); const BG = 12;
   let bushMeshes = [];
   let grassPool = [], grassGeo, grassMat;
-  const GRASS_CELL = 24, GRASS_PER = 1400;
+  const GRASS_CELL = 24, GRASS_PER = 2200;
 
   function windPatch(mat, strength, isGrass) {
     mat.onBeforeCompile = (sh) => {
@@ -83,6 +83,10 @@ FC.Foliage = (function () {
       const T = TYPES[key], sm = FC.Assets.staticModel(T.model);
       const mats = sm.materials.map((m) => {
         const c = m.clone();
+        // pull the packs' minty greens toward a warmer tropical green
+        const hsl = {}; c.color.getHSL(hsl);
+        if (hsl.h > 0.2 && hsl.h < 0.55 && hsl.s > 0.15) c.color.setHSL(FC.lerp(0.25, 0.3, Math.random()), Math.min(0.75, hsl.s * 1.05), hsl.l * 0.8);
+        c.roughness = 0.9;
         if (T.wind) windPatch(c, T.wind / Math.max(0.5, sm.size.y), false);
         return c;
       });
@@ -149,10 +153,10 @@ FC.Foliage = (function () {
     // a blade: two crossed tapered quads, vertex colours dark root -> light tip
     const pos = [], col = [];
     const blade = (ang) => {
-      const c = Math.cos(ang) * 0.06, s = Math.sin(ang) * 0.06;
+      const c = Math.cos(ang) * 0.035, s = Math.sin(ang) * 0.035;
       const v = [[-c, 0, -s], [c, 0, s], [0, 1, 0]];
       for (const p of v) pos.push(...p);
-      col.push(0.18, 0.3, 0.1, 0.18, 0.3, 0.1, 0.62, 0.78, 0.35);
+      col.push(0.12, 0.2, 0.05, 0.12, 0.2, 0.05, 0.38, 0.5, 0.16);
     };
     blade(0); blade(Math.PI / 3); blade(-Math.PI / 3);
     grassGeo = new THREE.BufferGeometry();
@@ -184,10 +188,10 @@ FC.Foliage = (function () {
       if (W.slopeAt(x, z) > 0.55) continue;
       const patch = FC.fbm(x * 0.05, z * 0.05, 2);
       if (patch < 0.35) continue;
-      const s = 0.35 + rng() * 0.55 * patch * 1.4;
+      const s = 0.22 + rng() * 0.45 * patch * 1.3;
       dummy.position.set(x, h - 0.05, z);
-      dummy.rotation.set(0, rng() * 6.28, 0);
-      dummy.scale.set(1 + rng(), s, 1 + rng());
+      dummy.rotation.set(rng() * 0.3 - 0.15, rng() * 6.28, rng() * 0.3 - 0.15);
+      dummy.scale.set(0.8 + rng() * 0.6, s, 0.8 + rng() * 0.6);
       dummy.updateMatrix();
       m.setMatrixAt(n++, dummy.matrix);
     }

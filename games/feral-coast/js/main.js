@@ -604,7 +604,6 @@
     for (const c of G.convoys) c.update(dt, G);
     if (G.convoyRespawn !== undefined) { G.convoyRespawn -= dt; if (G.convoyRespawn <= 0) { G.convoyRespawn = undefined; if (G.convoys.filter((c) => !c.done).length < 2) spawnConvoy(); } }
     // rain around each camera
-    if (FC.Env.rain > 0.15) for (const p of G.players) FC.FX.rain(p.cam.position.x, p.cam.position.y, p.cam.position.z, FC.Env.rain * dt * 30);
     // fog-of-war around players
     for (const p of G.players) G.revealAround(p.pos.x, p.pos.z, 90);
     // ambience
