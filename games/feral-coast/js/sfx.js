@@ -24,12 +24,33 @@ FC.Audio = (function () {
     if (!ready || !REC[name] || !(vol > 0.004)) return false;
     const ctx = P.context(), t = ctx.currentTime + (delay || 0);
     const src = ctx.createBufferSource(); src.buffer = REC[name]; src.playbackRate.value = rate || 1;
-    const g = ctx.createGain(); g.gain.value = Math.min(1.2, vol);
+    const g = ctx.createGain(); g.gain.value = Math.min(1.2, vol) * (FC.Settings.get().master ?? 1);
     const pn = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
     src.connect(g); if (pn) { pn.pan.value = FC.clamp(pan || 0, -1, 1); g.connect(pn); pn.connect(ctx.destination); } else g.connect(ctx.destination);
     src.start(t);
     return true;
   }
+
+  // looping recorded bed (rain): mp3 padding is skipped with loopStart/loopEnd
+  const recLoops = {};
+  function recLoop(key, name, on, vol) {
+    if (!ready || !REC[name]) return false;
+    const ctx = P.context(), cur = recLoops[key], m = FC.Settings.get().master ?? 1;
+    if (on && !cur) {
+      const src = ctx.createBufferSource(); src.buffer = REC[name]; src.loop = true;
+      src.loopStart = 0.06; src.loopEnd = REC[name].duration - 0.06;
+      const g = ctx.createGain(); g.gain.value = 0; g.gain.linearRampToValueAtTime(vol * m, ctx.currentTime + 2);
+      src.connect(g); g.connect(ctx.destination); src.start(0, 0.06);
+      recLoops[key] = { src, g };
+    } else if (!on && cur) {
+      cur.g.gain.cancelScheduledValues(ctx.currentTime); cur.g.gain.setValueAtTime(cur.g.gain.value, ctx.currentTime);
+      cur.g.gain.linearRampToValueAtTime(0, ctx.currentTime + 1.5); cur.src.stop(ctx.currentTime + 1.6); delete recLoops[key];
+    } else if (on && cur) cur.g.gain.value = vol * m;
+    return true;
+  }
+  // recorded footsteps (Freesound): surface -> sample prefix
+  const STEP_REC = { wood: 'step_wood', sand: 'step_sand', grass: 'step_leaf', water: null, gravel: null, stone: null };
+  let stepCool = 0;
 
   function play(name, o) {
     if (!P || !ready) return null;
@@ -124,17 +145,29 @@ FC.Audio = (function () {
     heartbeat() { play('heartbeat', { volume: 0.35, cooldown: 0.9, voices: 1 }); },
     step(surface, vol) {
       if (!ready) return S.step(vol);
+      const pre = STEP_REC[surface], now = performance.now();
+      if (pre && REC[pre + '0'] && now > stepCool) {
+        stepCool = now + 110;
+        if (rec(pre + Math.floor(Math.random() * 6), (surface === 'sand' ? 0.5 : 0.32) * vol, FC.rand(-0.08, 0.08), FC.rand(0.92, 1.08))) return;
+      }
       play('step-' + surface, { volume: 0.18 * vol, cooldown: 0.12, voices: 2, rate: FC.rand(0.92, 1.08) });
     },
     // looping beds: started/stopped by intensity; engines retune with speed
     loop(key, name, on, vol, rate) {
       if (!ready) return;
+      if (key === 'rain' && REC.rain_loop) { recLoop('rain', 'rain_loop', on, vol * 1.4); return; }
       const v = loops[key];
       if (on && !v) loops[key] = play(name, { volume: vol, loop: true, rate: rate || 1 });
       else if (!on && v) { v.stop(0.8); delete loops[key]; }
       else if (on && v && rate) v.rate(rate);
     },
-    stopLoops() { for (const k in loops) { loops[k].stop(0.3); delete loops[k]; } },
+    stopLoops() { for (const k in loops) { loops[k].stop(0.3); delete loops[k]; } for (const k in recLoops) recLoop(k, null, false); },
+    // close lightning strike: recorded thunder clap (InspectorJ, CC BY 4.0) delayed by distance
+    thunder(dist) {
+      const d = dist || 300;
+      if (rec('thunder_close', FC.clamp(1.1 - d / 900, 0.25, 1), 0, d > 400 ? 0.85 : 1, Math.min(3, d / 340))) return;
+      play(d < 400 ? 'thunder-crack' : 'thunder-far', { volume: 0.7 });
+    },
     ambient(name, vol) { if (ready) play(name, { volume: vol, cooldown: 0.5, rate: FC.rand(0.9, 1.1) }); },
     music(i) { S.music(i); },
     birds(v) { if (ready) play('bird-chirp', { volume: 0.25 * v, rate: FC.rand(0.85, 1.25), pan: FC.rand(-0.8, 0.8), cooldown: 0.3 }); else S.birds(v); },

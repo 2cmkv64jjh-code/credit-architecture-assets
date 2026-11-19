@@ -180,5 +180,5 @@ Driving: forward/back is throttle, left/right steers, jump is the handbrake and 
 - Sound effects: [plinkfx](https://github.com/maximilianfeix/plinkfx) by Maximilian Feix. The sounds are CC0 and the player code is MIT.
 - Ambient occlusion: [N8AO](https://github.com/N8python/n8ao) (ISC), together with [postprocessing](https://github.com/pmndrs/postprocessing) (Zlib).
 - Physics: [Rapier](https://rapier.rs) (`@dimforge/rapier3d-compat`, Apache-2.0). Steering: [Yuka](https://github.com/Mugen87/yuka) (MIT). Both are bundled into `vendor/physics.bundle.js`.
-- Recorded gun sounds: CC0 packs from OpenGameArt; see `assets/sounds/CREDITS.md`.
+- Recorded gun sounds: CC0 packs from OpenGameArt. Footsteps, rain and thunder: Freesound recordings by artem_zaitsev, nox_sound, bevangoldswain, cdrk and InspectorJ (CC BY 4.0). See `assets/sounds/CREDITS.md`.
 - three.js, plinkfx, N8AO and postprocessing are bundled into `vendor/three.bundle.js` by `tools/build-vendor.sh`.

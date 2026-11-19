@@ -140,10 +140,11 @@ FC.Living = (function () {
     if (L.lightningT > 0) return;
     L.lightningT = FC.rand(5, 14);
     FC.Render.fade = Math.max(FC.Render.fade || 0, 0.55);
-    setTimeout(() => FC.Audio.ambient(Math.random() < 0.5 ? 'thunder-crack' : 'thunder-far', 0.7), 300 + Math.random() * 1500);
-    if (Math.random() < 0.35 && G.players.length) {
-      const p = FC.pick(G.players);
-      const pt = FC.World.landPoint(p.pos.x, p.pos.z, 60, 220);
+    const strike = Math.random() < 0.35 && G.players.length;
+    const p = strike ? FC.pick(G.players) : null;
+    const pt = strike ? FC.World.landPoint(p.pos.x, p.pos.z, 60, 220) : null;
+    FC.Audio.thunder(pt ? Math.hypot(pt.x - p.pos.x, pt.z - p.pos.z) : FC.rand(350, 900));
+    if (strike) {
       if (FC.World.heightAt(pt.x, pt.z) > 2) {
         G.ignite(pt.x, pt.z, 4, 14, null);
         FC.FX.explosion(pt.x, FC.World.heightAt(pt.x, pt.z), pt.z);
