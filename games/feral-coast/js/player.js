@@ -71,11 +71,26 @@ FC.Player = class {
     vm.rifle = P.rifle(); arms(vm.rifle);
     const rsup = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.22, 10), d); rsup.rotation.x = Math.PI / 2; rsup.position.set(0, 0.012, -0.78); rsup.visible = false;
     vm.rifle.add(rsup); vm.rifle.userData.sup = rsup;
+    // animated first-person arms (FPS pack) for the carbine and the pistol, when available
+    this.vmRigs = {};
+    const akm = FC.FpsRig('fpsAKM', 'AKM', 0.97, -0.70, 0.06);
+    if (akm) {
+      const sup0 = vm.rifle.userData.sup;
+      vm.rifle = akm.group; this.vmRigs.rifle = akm;
+      if (sup0) { sup0.position.set(akm.muzzle[0], akm.muzzle[1], akm.muzzle[2] - 0.1); vm.rifle.add(sup0); vm.rifle.userData.sup = sup0; }
+      const glock = FC.FpsRig('fpsGlock', 'Glock', 0.24, -0.16, 0.05, akm.k * 1.0);
+      if (glock) { this.vmRigs.pistol = glock; this.vmRigs.pistol.pistol = true; }
+    }
     vm.knives = P.upright('knife', 0.3);
     P.part(vm.knives, 0.085, 0.085, 0.34, 0.05, -0.1, 0.18, sleeve); P.part(vm.knives, 0.075, 0.075, 0.1, 0.03, -0.05, 0.03, skin);
     vm.pistol = P.pistol();
     const sup = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.2, 10), d); sup.rotation.x = Math.PI / 2; sup.position.set(0, 0.012, -0.25); vm.pistol.add(sup);
     P.part(vm.pistol, 0.085, 0.085, 0.34, 0.05, -0.1, 0.2, sleeve); P.part(vm.pistol, 0.07, 0.07, 0.09, 0.02, -0.08, 0.04, skin);
+    if (this.vmRigs.pistol) {
+      const pr = this.vmRigs.pistol, ps = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.2, 10), d);
+      ps.rotation.x = Math.PI / 2; ps.position.set(pr.muzzle[0], pr.muzzle[1], pr.muzzle[2] - 0.1); pr.group.add(ps);
+      vm.pistol = pr.group;
+    }
     vm.shotgun = P.shotgun(); arms(vm.shotgun);
     vm.sniper = P.sniper(); arms(vm.sniper);
     vm.molotov = new THREE.Group();
@@ -107,6 +122,9 @@ FC.Player = class {
     vm.bow.rotation.z = 0.25;
     this.vm = vm;
     this.muzzle = { rifle: [0, 0.012, -0.7], pistol: [0, 0.01, -0.36], shotgun: [0, 0.02, -0.76], sniper: [0, 0.012, -0.88] };
+    if (this.vmRigs.rifle) this.muzzle.rifle = this.vmRigs.rifle.muzzle.slice(); 
+    if (this.vmRigs.pistol) { const m = this.vmRigs.pistol.muzzle; this.muzzle.pistol = [m[0], m[1], m[2] - 0.2]; }
+    if (this.muzzle.rifle && this.vm.rifle.userData.sup) this.muzzle.rifle[2] -= 0;
     this.vmRoot = new THREE.Group();
     this.vmRoot.scale.setScalar(0.6);
     this.cam.add(this.vmRoot);
@@ -518,8 +536,29 @@ FC.Player = class {
     const swayX = Math.cos(this.walkPhase * 0.5) * bobA * 0.5, swayY = Math.abs(Math.sin(this.walkPhase)) * bobA * 0.4;
     const lower = (this.sprint ? 0.12 : 0) + (this.swimming ? 0.35 : 0) + (this.reloadT > 0 ? 0.12 : 0) + this.switchT * 0.5 + (this.healT > 0 ? 0.3 : 0);
     const g = this.vm[this.weapon];
+    const rig = this.vmRigs && this.vmRigs[this.weapon];
+    if (rig) {
+      // drive the animated arms: reload clip stretched to the reload time, shoot on each shot, idle otherwise
+      const want = this.reloadT > 0 ? 'Reload' : this.kick > 0.85 ? 'Shoot' : (rig.current === 'Shoot' && rig.shootT > 0 ? 'Shoot' : 'Idle');
+      rig.shootT = Math.max(0, (rig.shootT || 0) - dt);
+      if (this.kick > 0.85 && this.kick > (rig.lastKick || 0) + 0.05) {
+        const act = rig.mixer.clipAction(rig.clips.Shoot); act.reset(); act.setLoop(THREE.LoopOnce, 1); act.clampWhenFinished = false; act.play();
+        if (rig.current !== 'Shoot') rig.mixer.clipAction(rig.clips[rig.current]).crossFadeTo(act, 0.04, false);
+        rig.current = 'Shoot'; rig.shootT = rig.clips.Shoot.duration;
+      } else if (want !== rig.current && rig.clips[want] && want !== 'Shoot') {
+        const act = rig.mixer.clipAction(rig.clips[want]); act.reset();
+        if (want === 'Reload') { act.setLoop(THREE.LoopOnce, 1); act.clampWhenFinished = true; act.timeScale = rig.clips.Reload.duration / Math.max(0.3, this.reloadT); }
+        else { act.setLoop(THREE.LoopRepeat, Infinity); act.timeScale = 1; }
+        act.play(); if (rig.current && rig.clips[rig.current]) rig.mixer.clipAction(rig.clips[rig.current]).crossFadeTo(act, 0.15, false);
+        rig.current = want;
+      }
+      rig.lastKick = this.kick;
+      if (g.visible) rig.mixer.update(dt);
+    }
     g.position.set(FC.lerp(0.3, 0, a) + swayX, FC.lerp(-0.3, w.scope ? -0.2 : -0.13, a) - swayY - lower, FC.lerp(-0.42, -0.32, a) + this.kick * 0.05);
-    g.rotation.set(this.kick * 0.08 + (this.reloadT > 0 ? 0.5 : 0), this.sprint ? 0.5 : 0, this.reloadT > 0 ? 0.4 : 0);
+    g.rotation.set(this.kick * 0.08 + (this.reloadT > 0 && !rig ? 0.5 : 0), this.sprint ? 0.5 : 0, this.reloadT > 0 && !rig ? 0.4 : 0);
+    if (rig && this.reloadT > 0) g.position.y += 0.12; // the animated reload is visible: no hiding the gun
+    if (rig && rig.pistol) { g.position.x -= 0.11 * (1 - a); g.position.y += 0.09 * (1 - a) + 0.02; }
     if (this.weapon === 'bow') {
       const B = g.userData, nz = 0.0 + this.drawT * 0.26;
       const setStr = (o, a, b) => { o.position.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2); const dy = b[1] - a[1], dz = b[2] - a[2]; o.scale.y = Math.hypot(dy, dz); o.rotation.x = Math.atan2(dz, dy); };

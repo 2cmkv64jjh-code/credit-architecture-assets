@@ -689,7 +689,8 @@
     FC.Audio.loop('rain', 'rain-loop', FC.Env.rain > 0.35, 0.35);
     FC.Audio.loop('wind', 'wind-loop', true, 0.12);
     { const p0 = G.players[0], hj = p0 ? FC.World.heightAt(p0.pos.x, p0.pos.z) : 0;
-      FC.Audio.loop('jungle', 'jungle-bed', G.state === 'playing' && hj > 3 && FC.Env.night < 0.5 && FC.Env.rain < 0.5, 0.22); }
+      FC.Audio.loop('jungle', 'jungle-bed', G.state === 'playing' && hj > 3 && FC.Env.night < 0.5 && FC.Env.rain < 0.5, 0.22);
+      FC.Audio.loop('jnight', 'jungle-night', G.state === 'playing' && hj > 3 && FC.Env.night >= 0.5 && FC.Env.rain < 0.5, 0.2); }
     G.howlT = (G.howlT || 20) - dt;
     if (G.howlT <= 0) {
       G.howlT = FC.rand(25, 60);

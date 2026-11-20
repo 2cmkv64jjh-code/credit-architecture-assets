@@ -238,6 +238,33 @@ FC.Rig.measure = function (name) {
 };
 
 // Simple first-person / third-person weapon props built from primitives.
+// Animated first-person rig (arms + gun) from the FPS pack. The source faces +X with the shoulders at -X.
+// Scaled so the gun is `gunLen` viewmodel units long, its muzzle at z=front and its top at y=top, i.e. the
+// same frame as the static gun props. Returns { group, mixer, clips, muzzle }.
+FC.FpsRig = function (key, gunPrefix, gunLen, front, top, armScaleFrom) {
+  const src = FC.Assets.gltf[key];
+  if (!src) return null;
+  const model = THREE.SkeletonUtils.clone(src.scene);
+  const fit = new THREE.Group(), group = new THREE.Group();
+  fit.add(model); group.add(fit);
+  fit.rotation.y = Math.PI / 2; // +X -> -Z
+  const mixer = new THREE.AnimationMixer(model), clips = {};
+  for (const c of src.animations) clips[c.name.split('|').pop()] = c;
+  if (clips.Idle) { mixer.clipAction(clips.Idle).play(); mixer.update(0.01); }
+  group.updateMatrixWorld(true);
+  const gb = new THREE.Box3();
+  model.traverse((o) => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = false; if (o.name.startsWith(gunPrefix) || (o.parent && o.parent.name.startsWith(gunPrefix))) gb.expandByObject(o, true); } });
+  const len0 = gb.max.z - gb.min.z;
+  const k = armScaleFrom || gunLen / len0;
+  fit.scale.setScalar(k);
+  group.updateMatrixWorld(true);
+  gb.makeEmpty(); model.traverse((o) => { if (o.isMesh && (o.name.startsWith(gunPrefix) || (o.parent && o.parent.name.startsWith(gunPrefix)))) gb.expandByObject(o, true); });
+  fit.position.set(-(gb.min.x + gb.max.x) / 2, top - gb.max.y, front - gb.min.z);
+  model.traverse((o) => { if (o.isMesh) { const ms = Array.isArray(o.material) ? o.material : [o.material]; ms.forEach((m) => { m.roughness = Math.max(0.5, m.roughness ?? 0.8); }); } });
+  const h = gb.max.y - gb.min.y;
+  return { group, mixer, clips, k, muzzle: [0, top - h * 0.22, front], current: clips.Idle ? 'Idle' : null };
+};
+
 FC.GunProps = (function () {
   const box = new THREE.BoxGeometry(1, 1, 1);
   const dark = new THREE.MeshStandardMaterial({ color: 0x22252a, roughness: 0.5, metalness: 0.6 });

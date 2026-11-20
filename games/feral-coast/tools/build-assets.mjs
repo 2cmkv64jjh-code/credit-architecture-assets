@@ -30,7 +30,12 @@ const EXTRA = {
   shipLarge: 'ship_large.glb', shipSmall: 'ship_small.glb', dock: 'dock.glb', dockBroken: 'dock_broken.glb',
   anchor: 'anchor.glb', cannon: 'cannon.glb', chestGold: 'chest_gold.glb',
   // CC BY models from Poly Pizza (see README credits)
-  croc: 'croc.glb', bear: 'bear.glb', parrot: 'parrot.glb', radioTower: 'radio.glb', helicopter: 'helicopter.glb',
+  // FPS pack (Poly Pizza bundle): animated first-person arms + AKM / Glock, and the M939 truck
+  // Kenney Watercraft / Car / Survival kits (CC0)
+  kBoatRebel: 'k_boat_rebel.glb', kBoatTide: 'k_boat_tide.glb', kRowboat: 'k_rowboat.glb', kFishing: 'k_fishing.glb', kSedan: 'k_sedan.glb', kVan: 'k_van.glb',
+  kWorkbench: 'k_workbench.glb', kCampfire: 'k_campfire.glb', kShelter: 'k_shelter.glb', kBedroll: 'k_bedroll.glb', kContainer: 'k_container.glb', kBuoy: 'k_buoy.glb',
+  fpsAKM: 'fps_akm.glb', fpsGlock: 'fps_glock.glb', m939: 'm939.glb',
+  croc: 'croc.glb', bear: 'bear.glb', jaguar: 'jaguar.glb', parrot: 'parrot.glb', radioTower: 'radio.glb', helicopter: 'helicopter.glb',
 };
 const out = { models: {}, textures: {} };
 for (const [k, f] of Object.entries(MODELS)) out.models[k] = fs.readFileSync(path.join(lib, f)).toString('base64');

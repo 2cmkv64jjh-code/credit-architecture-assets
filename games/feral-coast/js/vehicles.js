@@ -18,9 +18,12 @@ FC.Vehicle = class {
     else if (this.air) mesh = FC.Vehicle.gyroMesh();
     else if (kind === 'quad') mesh = FC.Vehicle.quadMesh();
     else {
-      mesh = FC.Assets.propMesh(kind === 'truck' ? 'truck' : 'suv', { length: this.len });
-      mesh.rotation.y = Math.PI; // model faces +z
-      if (kind === 'truck') mesh.material = mesh.material.map((m) => { const c = m.clone(); c.color.multiplyScalar(0.55); c.color.r *= 1.3; return c; });
+      if (kind === 'truck' && FC.Assets.gltf.m939) mesh = FC.Assets.orientedProp('m939', { len: this.len, faceFix: -Math.PI / 2 }); // M939 (FPS pack) faces -X
+      else {
+        mesh = FC.Assets.propMesh(kind === 'truck' ? 'truck' : 'suv', { length: this.len });
+        mesh.rotation.y = Math.PI; // model faces +z
+        if (kind === 'truck') mesh.material = mesh.material.map((m) => { const c = m.clone(); c.color.multiplyScalar(0.55); c.color.r *= 1.3; return c; });
+      }
     }
     this.mesh = mesh;
     this.group.add(mesh);
@@ -307,6 +310,13 @@ FC.Vehicle.quadMesh = function () {
 
 // Procedural speedboat (no boat model in the CC0 packs): hull, bow wedge, windscreen, seats, outboard.
 FC.Vehicle.boatMesh = function (tide) {
+  const key = tide ? 'kBoatTide' : 'kBoatRebel';
+  if (FC.Assets.gltf[key]) {
+    // Kenney Watercraft Pack speedboats (CC0), bow toward +Z in the source; sits 0.3 m into the water
+    const g = FC.Assets.orientedProp(key, { len: tide ? 6.6 : 5.4, faceFix: Math.PI });
+    g.children[0].position.y = -0.3;
+    return g;
+  }
   const g = new THREE.Group();
   const S = (c, o) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.6 }, o || {}));
   const hullC = tide ? 0x2a2a2e : 0xe8e4da, stripe = tide ? 0x8c1f1f : 0x23b38a;

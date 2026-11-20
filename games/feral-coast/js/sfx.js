@@ -165,9 +165,9 @@ FC.Audio = (function () {
       if (!ready) return;
       if (key === 'rain' && REC.rain_loop) { recLoop('rain', 'rain_loop', on, vol * 1.4); return; }
       // recorded engine beds (Freesound): rotor for aircraft, jeep for land vehicles; jungle birds by day
-      const recName = name === 'rotor-loop' ? 'rotor_loop' : name === 'engine-idle' ? 'jeep_loop' : name === 'jungle-bed' ? 'jungle_loop' : null;
+      const recName = name === 'rotor-loop' ? 'rotor_loop' : name === 'engine-idle' ? 'jeep_loop' : name === 'jungle-bed' ? 'jungle_loop' : name === 'jungle-night' ? 'night_loop' : null;
       if (recName && REC[recName]) { recLoop(key, recName, on, vol * (recName === 'jeep_loop' ? 1.3 : 1), rate); return; }
-      if (name === 'jungle-bed') return;
+      if (name === 'jungle-bed' || name === 'jungle-night') return;
       const v = loops[key];
       if (on && !v) loops[key] = play(name, { volume: vol, loop: true, rate: rate || 1 });
       else if (!on && v) { v.stop(0.8); delete loops[key]; }

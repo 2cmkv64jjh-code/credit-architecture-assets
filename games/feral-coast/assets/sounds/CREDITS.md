@@ -31,3 +31,4 @@ file; InspectorJ's sounds are published under CC BY 4.0, which requires this cre
 # Impacts and stone footsteps (Kenney, CC0)
 
 hit_metal0–2, hit_wood0–2, hit_soft0–2, punch0–2 and step_stone0–4 are from Kenney's "Impact Sounds" pack (www.kenney.nl, CC0 1.0).
+| night_loop.mp3 | "Ambience scary jungle" by marchon11 — freesound.org/s/493721/ |

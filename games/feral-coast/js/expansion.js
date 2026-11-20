@@ -456,6 +456,47 @@ FC.Expansion = (function () {
       const m = prop('shipLarge', 1.5, x, h - 0.6, z, rng() * 6.28, [0.08, 0.32]);
       if (m) { W.addCircle(x, z, 6, 9); wrecks++; }
     }
+    // village life (Kenney kits): rowboats on the sand, a fishing boat moored off shore, parked cars by the road
+    for (const v of W.villages) {
+      let placed = 0;
+      for (let t = 0; t < 600 && placed < 3; t++) {
+        const a = rng() * 6.28, r = 15 + rng() * 140, x = v.x + Math.cos(a) * r, z = v.z + Math.sin(a) * r, h = W.heightAt(x, z);
+        if (placed < 2 && h > 0.05 && h < 0.9 && !W.isReserved(x, z, 4)) { const m = prop('kRowboat', 1.4, x, h - 0.1, z, rng() * 6.28, [0, 0.12]); if (m) { W.addCircle(x, z, 1.4, 0.8); placed++; } }
+        else if (placed === 2 && h < -2.5 && h > -6) { prop('kFishing', 2.1, x, -0.45, z, rng() * 6.28); placed++; }
+      }
+      const rp = W.nearestRoadPoint(v.x, v.z);
+      if (rp) for (let i = 0; i < 2; i++) {
+        const k = Math.min(rp.road.pts.length - 2, rp.k + 2 + i * 3), a0 = rp.road.pts[k], a1 = rp.road.pts[k + 1];
+        if (!a0 || !a1) continue;
+        const yaw = FC.yawTo(a1.x - a0.x, a1.z - a0.z), sx = Math.cos(yaw) * 3.4, sz = -Math.sin(yaw) * 3.4;
+        const x = a0.x + sx, z = a0.z + sz;
+        if (W.pointBlocked(x, z, 1.6) || W.heightAt(x, z) < 0.5) continue;
+        prop(i ? 'kVan' : 'kSedan', 1.75, x, W.heightAt(x, z), z, yaw + Math.PI + FC.rand(-0.15, 0.15));
+        W.addCollider({ minX: x - 1.6, maxX: x + 1.6, minZ: z - 1.6, maxZ: z + 1.6, minY: W.heightAt(x, z), maxY: W.heightAt(x, z) + 1.5 });
+      }
+    }
+    // rebel camp: workbench, fire pit, canvas shelters and bedrolls
+    { const c = W.start; let n = 0;
+      for (let t = 0; t < 300 && n < 7; t++) {
+        const a = rng() * 6.28, r = 7 + rng() * 14, x = c.x + Math.cos(a) * r, z = c.z + Math.sin(a) * r;
+        if (W.pointBlocked(x, z, 1.8) || W.slopeAt(x, z) > 0.35) continue;
+        const key = ['kWorkbench', 'kShelter', 'kBedroll', 'kBedroll', 'kShelter', 'kCampfire', 'kBedroll'][n];
+        const k = key === 'kShelter' ? 6.5 : key === 'kWorkbench' ? 4.2 : key === 'kCampfire' ? 6 : 3.2;
+        prop(key, k, x, W.heightAt(x, z), z, FC.yawTo(c.x - x, c.z - z));
+        if (key !== 'kBedroll') W.addCircle(x, z, key === 'kShelter' ? 1.4 : 0.8, 1.2);
+        n++;
+      } }
+    // buoys marking the boat moorings and shipping containers on the Black Pier
+    for (const d of X.docks || []) prop('kBuoy', 1.6, d.x + 6, -0.5, d.z + 3, 0);
+    { const bp = W.outposts[7];
+      for (let i = 0, t = 0; i < 3 && t < 200; t++) {
+        const a = rng() * 6.28, r = bp.r * (0.4 + rng() * 0.5), x = bp.x + Math.cos(a) * r, z = bp.z + Math.sin(a) * r;
+        if (W.pointBlocked(x, z, 3.5) || W.heightAt(x, z) < 0.5 || W.slopeAt(x, z) > 0.3) continue;
+        const yaw = rng() * 6.28, h = W.heightAt(x, z);
+        prop('kContainer', 2.4, x, h, z, yaw);
+        W.addCollider({ minX: x - 2.2, maxX: x + 2.2, minZ: z - 2.2, maxZ: z + 2.2, minY: h, maxY: h + 2.6 });
+        i++;
+      } }
     // beached skiffs + anchors by the villages
     for (const v of W.villages) {
       for (let t = 0; t < 400; t++) {
