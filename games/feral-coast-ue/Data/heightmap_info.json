@@ -1,0 +1,8 @@
+{
+ "resolution": 1009,
+ "min_m": -20.0,
+ "max_m": 106.65853881835938,
+ "landscape_scale_xy_cm": 158.73015873015873,
+ "landscape_scale_z": 100,
+ "note": "pixel value = height_m*128 + 32768; with Z scale 100 the landscape reproduces the game heights exactly"
+}
