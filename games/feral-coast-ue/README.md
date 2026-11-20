@@ -93,7 +93,7 @@ distance-field shadows, and local split-screen co-op. It should also open in UE5
   - If the first-person arms sit wrong, select the player in a running game (or make a Blueprint child of
     `FCCharacter`) and adjust *Viewmodel > Arms Offset / Arms Rotation / Arms Gun Length Cm*.
   - If militia face the wrong way, change `FCEnemy` *Mesh Yaw Offset*.
-- **Militia T-posing:** the animation names from the glTF importer didn't match the names the code looks
+- **Militia T-posing:** the animation names from the FBX importer didn't match the names the code looks
   for ("Idle", "Walk", "Run", "Death"). Check `/Game/FeralCoast/Models/rebel1/`.
 - **Compile errors:** they will name a file and line. Most likely causes are UE version API differences
   (written against 4.26.2).
