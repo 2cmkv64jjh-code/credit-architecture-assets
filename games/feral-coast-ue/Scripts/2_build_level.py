@@ -11,8 +11,7 @@ PROJECT = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir())
 world = json.load(open(os.path.join(PROJECT, "Data", "world.json")))
 MEL = unreal.MaterialEditingLibrary
 tools = unreal.AssetToolsHelpers.get_asset_tools()
-eas = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
-les = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
+ELL = unreal.EditorLevelLibrary   # UE 4.26 API (5.x moved these into editor subsystems)
 
 def ue(x, y, z):  # three.js metres -> Unreal cm (X=x, Y=z, Z=y)
     return unreal.Vector(x * 100.0, z * 100.0, y * 100.0)
@@ -100,20 +99,20 @@ ocean_mat = m
 # --- the map ---
 MAP = "/Game/FeralCoast/Maps/Island"
 if unreal.EditorAssetLibrary.does_asset_exist(MAP):
-    les.load_level(MAP)
+    ELL.load_level(MAP)
 else:
-    les.new_level(MAP)
+    ELL.new_level(MAP)
 
 def spawn(cls, loc=unreal.Vector(0, 0, 0), rot=unreal.Rotator(0, 0, 0), label=None):
-    a = eas.spawn_actor_from_class(cls, loc, rot)
+    a = ELL.spawn_actor_from_class(cls, loc, rot)
     if label:
         a.set_actor_label(label)
     return a
 
 # remove anything this script made before so it can be re-run
-for a in eas.get_all_level_actors():
+for a in ELL.get_all_level_actors():
     if a.get_actor_label().startswith("FC_"):
-        eas.destroy_actor(a)
+        ELL.destroy_actor(a)
 
 sun = spawn(unreal.DirectionalLight, unreal.Vector(0, 0, 50000), unreal.Rotator(0, -38, 135), "FC_Sun")
 sc = sun.get_component_by_class(unreal.DirectionalLightComponent)
@@ -156,5 +155,5 @@ if builder_cls:
 else:
     unreal.log_error("Feral Coast: compile the C++ project first (FCWorldBuilder class not found)")
 
-les.save_current_level()
+ELL.save_current_level()
 unreal.log("Feral Coast: Island map built. Import the landscape (README step 4), then press Play.")

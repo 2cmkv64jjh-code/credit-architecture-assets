@@ -1,8 +1,8 @@
 # Feral Coast — Unreal Engine 5 port
 
-A port of the browser game in `../feral-coast` to **Unreal Engine 5.4** (5.3+ should work). It is the
-same island, built from the game's own data, with Lumen lighting, virtual shadow maps, volumetric clouds
-and fog, a real sky, and local split-screen co-op.
+A port of the browser game in `../feral-coast` to **Unreal Engine 4.26.2**. It is the same island, built
+from the game's own data, with a physical sky atmosphere, volumetric clouds and fog, real-time sky lighting,
+distance-field shadows, and local split-screen co-op. It should also open in UE5: let it convert the project.
 
 > Status: first pass, **not yet compiled or run**. It was written in a cloud session that could not reach
 > the Windows PC. Expect to fix small things on the first build (see "If something goes wrong").
@@ -11,25 +11,25 @@ and fog, a real sky, and local split-screen co-op.
 
 | Path | What it is |
 |---|---|
-| `FeralCoast.uproject` | The project (C++ module + Python, Editor Scripting and Interchange plugins) |
+| `FeralCoast.uproject` | The project (C++ module + Python and Editor Scripting plugins), engine 4.26 |
 | `Source/FeralCoast/` | C++ gameplay: `FCCharacter` (player), `FCEnemy` (militia AI), `FCWorldBuilder` (island content), `FCHUD`, `FCGameMode` (split-screen co-op), `FCAssets` |
 | `Data/heightmap_1009.png` | 16-bit island heightmap exported from the game (1009 × 1009 for 1.6 km) |
 | `Data/world.json` | Outposts, villages, towers, roads, building blocks, 98 militia, wildlife, vehicles, piers |
 | `Data/circles.json` | 6,879 tree and rock positions with sizes |
-| `SourceAssets/` | All 66 models (glTF), 54 sounds (OGG) and 9 textures, with their credits |
+| `SourceAssets/` | All 66 models (FBX, characters/animals/arms with skeletons and animations), 54 sounds (WAV) and 9 textures, with their credits |
 | `Scripts/1_import_assets.py` | Imports everything into `/Game/FeralCoast` |
 | `Scripts/2_build_level.py` | Makes the materials and the `Island` map (sky, sun, clouds, fog, ocean, post-process, player start, world builder) |
 
 ## Setup on Windows (about 15 minutes, mostly waiting)
 
-1. **Prerequisites:** Unreal Engine 5.4 from the Epic Games Launcher, plus **Visual Studio 2022** with the
-   "Game development with C++" workload (Unreal needs it to compile C++).
+1. **Prerequisites:** Unreal Engine 4.26.2, plus **Visual Studio 2019** with the "Game development with C++"
+   workload. Unreal needs it to compile C++, and 4.26 expects VS 2019.
 2. **Open the project:** copy this `feral-coast-ue` folder somewhere local, then double-click
    `FeralCoast.uproject`. When it says the module is missing or out of date, click **Yes** to rebuild.
    If it can't, right-click the `.uproject` > *Generate Visual Studio project files*, open `FeralCoast.sln`
    and build **Development Editor / Win64**.
 3. **Import assets:** in the editor, *Tools > Execute Python Script...* > `Scripts/1_import_assets.py`.
-   (Accept the glTF import defaults if a dialog appears.)
+   It imports the FBX files with skeletons and animations, plus the WAV sounds. It takes several minutes.
 4. **Build the map:** *Tools > Execute Python Script...* > `Scripts/2_build_level.py`.
    It creates and opens `/Game/FeralCoast/Maps/Island`.
 5. **Import the island landscape** (the editor's Python API can't do this step):
@@ -65,7 +65,7 @@ and fog, a real sky, and local split-screen co-op.
   - The animated first-person arms for the carbine and pistol.
   - All recorded sounds.
 - **New in Unreal:**
-  - Lumen global illumination and reflections, and virtual shadow maps.
+  - Real-time sky lighting and distance-field shadows (upgrade to UE5 later for Lumen and Nanite).
   - Physically based sky with volumetric clouds and height fog.
   - Instanced forest with collision (bullets and players).
   - A suspicion meter above each guard; alerts spread to squads; enemies strafe and chase.
@@ -96,4 +96,4 @@ and fog, a real sky, and local split-screen co-op.
 - **Militia T-posing:** the animation names from the glTF importer didn't match the names the code looks
   for ("Idle", "Walk", "Run", "Death"). Check `/Game/FeralCoast/Models/rebel1/`.
 - **Compile errors:** they will name a file and line. Most likely causes are UE version API differences
-  (written against 5.4).
+  (written against 4.26.2).

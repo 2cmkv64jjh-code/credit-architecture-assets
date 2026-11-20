@@ -2,6 +2,7 @@
 #include "FCCharacter.h"
 #include "FCHUD.h"
 #include "Kismet/GameplayStatics.h"
+#include "Engine/GameInstance.h"
 
 AFCGameMode::AFCGameMode()
 {
@@ -12,6 +13,6 @@ AFCGameMode::AFCGameMode()
 void AFCGameMode::BeginPlay()
 {
 	Super::BeginPlay();
-	if (bLocalCoop && UGameplayStatics::GetNumLocalPlayerControllers(this) < 2)
+	if (bLocalCoop && GetGameInstance() && GetGameInstance()->GetNumLocalPlayers() < 2)
 		UGameplayStatics::CreatePlayer(this, 1, /*bSpawnPlayerController*/ true);
 }

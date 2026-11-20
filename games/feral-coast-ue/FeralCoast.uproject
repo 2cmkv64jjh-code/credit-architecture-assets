@@ -1,6 +1,6 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "5.4",
+	"EngineAssociation": "4.26",
 	"Category": "",
 	"Description": "Feral Coast - open-world island shooter with local split-screen co-op",
 	"Modules": [
@@ -8,9 +8,6 @@
 	],
 	"Plugins": [
 		{ "Name": "PythonScriptPlugin", "Enabled": true },
-		{ "Name": "EditorScriptingUtilities", "Enabled": true },
-		{ "Name": "Interchange", "Enabled": true },
-		{ "Name": "InterchangeEditor", "Enabled": true },
-		{ "Name": "ModelingToolsEditorMode", "Enabled": true, "TargetAllowList": [ "Editor" ] }
+		{ "Name": "EditorScriptingUtilities", "Enabled": true }
 	]
 }

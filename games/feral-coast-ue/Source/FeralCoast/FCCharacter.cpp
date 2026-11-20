@@ -11,7 +11,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
 #include "Kismet/GameplayStatics.h"
-#include "Engine/DamageEvents.h"
+#include "Engine/EngineTypes.h"
 #include "DrawDebugHelpers.h"
 
 AFCCharacter::AFCCharacter()
